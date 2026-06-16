@@ -304,7 +304,7 @@ elif st.session_state.step == 2:
                         match = re.search(r"FRAZY BAZOWE:(.*)", result, re.IGNORECASE)
                         if match:
                             raw_phrases = match.group(1).split(",")
-                            phrases = [p.strip().lower() for p in raw_phrases if p.strip()]
+                            phrases = [p.replace('*', '').strip().lower() for p in raw_phrases if p.replace('*', '').strip()]
                             
                         product_analysis.append({
                             "url": url,
@@ -357,7 +357,7 @@ elif st.session_state.step == 3:
                 for kws in st.session_state.df_domain["Ahrefs_Keywords"].dropna():
                     domain_phrases.extend([k.strip() for k in str(kws).split(",") if k.strip()])
                     
-        domain_phrases_set = set(str(p).lower().strip() for p in domain_phrases)
+        domain_phrases_set = set(str(p).replace('*', '').lower().strip() for p in domain_phrases)
         
         # Łączymy
         all_phrases_set = ai_phrases_set.union(domain_phrases_set)
@@ -381,16 +381,24 @@ elif st.session_state.step == 4:
     
     st.markdown("Wgraj plik wyeksportowany z Ahrefs: **Traffic share -> By page** (czyli adresy url i tytuły innych domen na bazie zbadanych wcześniej fraz).")
     
-    gap_file = st.file_uploader("Wgraj plik z Ahrefs (CSV UTF-16LE z Top Pages/Traffic share)", type=['csv'])
+    gap_file = st.file_uploader("Wgraj plik z Ahrefs (CSV UTF-16LE, standardowe CSV lub XLSX)", type=['csv', 'xlsx', 'xls'])
     
     if st.button("Rozpocznij Dopasowywanie AI", type="primary"):
         if gap_file and "product_analysis" in st.session_state:
             with st.spinner("Parsowanie pliku..."):
                 try:
-                    df_gap = pd.read_csv(gap_file, encoding="utf-16le", sep="\t")
-                except:
-                    gap_file.seek(0)
-                    df_gap = pd.read_csv(gap_file)
+                    if gap_file.name.endswith('.xlsx') or gap_file.name.endswith('.xls'):
+                        df_gap = pd.read_excel(gap_file)
+                    else:
+                        try:
+                            # Próba formatu Ahrefs
+                            df_gap = pd.read_csv(gap_file, encoding="utf-16le", sep="\t")
+                            if len(df_gap.columns) <= 1:
+                                raise ValueError("To nie jest plik rozdzielany tabulatorem")
+                        except:
+                            # Fallback do zwykłego CSV przecinkowego
+                            gap_file.seek(0)
+                            df_gap = pd.read_csv(gap_file)
                 
                 # Upewniamy się, że są odpowiednie kolumny np. "URL" oraz "Title"
                 if "URL" not in df_gap.columns:
