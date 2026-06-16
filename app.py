@@ -530,13 +530,13 @@ Struktura JSON:
                                 produkt = data.get("produkt", "")
                                 uzasadnienie = data.get("uzasadnienie", "")
                                 
-                                    results.append({
-                                        "Competitor URL": target_url,
-                                        "Competitor Title": target_title,
-                                        "Recommended Product": produkt,
-                                        "Reasoning": uzasadnienie,
-                                        "AI Verdict": ocena
-                                    })
+                                results.append({
+                                    "Competitor URL": target_url,
+                                    "Competitor Title": target_title,
+                                    "Recommended Product": produkt,
+                                    "Reasoning": uzasadnienie,
+                                    "AI Verdict": ocena
+                                })
                             except:
                                 results.append({
                                     "Competitor URL": target_url,
