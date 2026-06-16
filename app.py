@@ -188,7 +188,13 @@ if st.session_state.step == 1:
                     df_s_raw["Source"] = "Senuto"
                     
                     df_unpivoted = pd.concat([df_a_raw, df_s_raw], ignore_index=True)
+                    
+                    # Usuwamy oryginalną kolumnę URL aby uniknąć duplikatów przy zmianie nazwy
+                    if "URL" in df_unpivoted.columns:
+                        df_unpivoted = df_unpivoted.drop(columns=["URL"])
+                        
                     df_unpivoted = df_unpivoted.rename(columns={"URL_Norm": "URL"})
+                    
                     df_unpivoted = df_unpivoted.dropna(subset=["URL", "Keyword"])
                     df_unpivoted = df_unpivoted[df_unpivoted["URL"].astype(str).str.strip() != ""]
                     
