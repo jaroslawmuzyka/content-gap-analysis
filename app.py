@@ -66,6 +66,13 @@ def normalize_url(url):
         url = url[:-1]
     return url.strip()
 
+# Funkcja pomocnicza: eksport do Excela (XLSX)
+def to_excel(df):
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sheet1')
+    return output.getvalue()
+
 # ================================
 # KROK 1: Wgranie Danych Domeny
 # ================================
@@ -103,31 +110,63 @@ if st.session_state.step == 1:
                     df_senuto = None
                 
                 if df_ahrefs is not None and df_senuto is not None:
-                    # Normalizacja URL dla Ahrefs i wydobycie fraz
-                    # Ahrefs kolumny: "Keyword", "URL", "Volume"
-                    col_kw_ahrefs = "Keyword" if "Keyword" in df_ahrefs.columns else df_ahrefs.columns[0]
-                    col_url_ahrefs = "URL" if "URL" in df_ahrefs.columns else df_ahrefs.columns[1]
+                    # Ahrefs kolumny do pozostawienia i zmiany nazwy
+                    ahrefs_cols_to_keep = ["Keyword", "Volume", "Organic traffic", "Current position", "Current URL"]
+                    avail_ahrefs = [c for c in ahrefs_cols_to_keep if c in df_ahrefs.columns]
+                    df_a_clean = df_ahrefs[avail_ahrefs].copy()
                     
-                    df_a_clean = df_ahrefs[[col_kw_ahrefs, col_url_ahrefs]].rename(columns={col_kw_ahrefs: "keyword", col_url_ahrefs: "url"}).dropna()
-                    df_a_clean["url_norm"] = df_a_clean["url"].apply(normalize_url)
-                    df_a_clean["source"] = "Ahrefs"
+                    df_a_clean = df_a_clean.rename(columns={
+                        "Keyword": "Keyword",
+                        "Volume": "Volume",
+                        "Organic traffic": "Traffic",
+                        "Current position": "Position",
+                        "Current URL": "URL"
+                    })
+                    if "URL" in df_a_clean.columns:
+                        df_a_clean["url_norm"] = df_a_clean["URL"].apply(normalize_url)
+                    else:
+                        df_a_clean["url_norm"] = ""
+                    df_a_clean["Source"] = "Ahrefs"
                     
-                    # Senuto kolumny: "Słowo kluczowe", "Adres URL"
-                    col_kw_senuto = "Słowo kluczowe" if "Słowo kluczowe" in df_senuto.columns else df_senuto.columns[0]
-                    col_url_senuto = "Adres URL" if "Adres URL" in df_senuto.columns else df_senuto.columns[1]
+                    # Senuto kolumny do pozostawienia i zmiany nazwy
+                    senuto_cols_map = {
+                        "Słowo kluczowe": "Keyword",
+                        "Śr. mies. liczba wyszukiwań": "Volume",
+                        "Śr. mies. liczba wyszukiwani": "Volume", # na wypadek różnej pisowni
+                        "Szacowany ruch": "Traffic",
+                        "Pozycja": "Position",
+                        "Adres URL": "URL"
+                    }
+                    avail_senuto = [c for c in df_senuto.columns if c in senuto_cols_map]
+                    df_s_clean = df_senuto[avail_senuto].copy()
+                    df_s_clean = df_s_clean.rename(columns=senuto_cols_map)
                     
-                    df_s_clean = df_senuto[[col_kw_senuto, col_url_senuto]].rename(columns={col_kw_senuto: "keyword", col_url_senuto: "url"}).dropna()
-                    df_s_clean["url_norm"] = df_s_clean["url"].apply(normalize_url)
-                    df_s_clean["source"] = "Senuto"
+                    if "URL" in df_s_clean.columns:
+                        df_s_clean["url_norm"] = df_s_clean["URL"].apply(normalize_url)
+                    else:
+                        df_s_clean["url_norm"] = ""
+                    df_s_clean["Source"] = "Senuto"
                     
-                    # Konsolidacja
+                    # Konsolidacja obu tabel
                     df_combined = pd.concat([df_a_clean, df_s_clean], ignore_index=True)
-                    # Deduplikacja na poziomie URL + Keyword, żeby nie dublować tych samych wyników
-                    df_combined = df_combined.drop_duplicates(subset=["keyword", "url_norm"])
+                    
+                    # Deduplikacja na poziomie URL + Keyword (ignorując wielkość liter we frazach)
+                    if "Keyword" in df_combined.columns and "url_norm" in df_combined.columns:
+                        df_combined["kw_lower"] = df_combined["Keyword"].astype(str).str.lower()
+                        df_combined = df_combined.drop_duplicates(subset=["kw_lower", "url_norm"])
+                        df_combined = df_combined.drop(columns=["kw_lower"])
                     
                     st.session_state.df_domain = df_combined
-                    st.success("Pliki zostały skonsolidowane!")
-                    st.dataframe(df_combined.head(100)) # Podgląd pierwszych 100
+                    st.success("Pliki zostały skonsolidowane i przefiltrowane!")
+                    st.dataframe(df_combined.head(100)) # Podgląd pierwszych 100 wyników
+                    
+                    # Przycisk pobierania do XLSX
+                    st.download_button(
+                        label="📥 Pobierz skonsolidowane dane (XLSX)",
+                        data=to_excel(df_combined),
+                        file_name='skonsolidowane_frazy.xlsx',
+                        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    )
         else:
             st.warning("Proszę wgrać oba pliki (Ahrefs i Senuto).")
 
@@ -339,6 +378,13 @@ elif st.session_state.step == 4:
                         st.session_state.df_gap_results = df_results
                         st.success("Analiza zakończona! Poniżej przefiltrowane wyniki:")
                         st.dataframe(df_results)
+                        
+                        st.download_button(
+                            label="📥 Pobierz wyniki Gap (XLSX)",
+                            data=to_excel(df_results),
+                            file_name='content_gap_wyniki.xlsx',
+                            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        )
                     else:
                         st.warning("Żaden z adresów nie został dopasowany do naszych produktów.")
         else:
