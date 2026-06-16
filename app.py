@@ -32,6 +32,13 @@ with st.sidebar:
     else:
         st.warning("Brak klucza API OpenAI. Skrypt może nie działać prawidłowo w krokach AI.")
         
+    # Klucz API do Jina Reader
+    jina_api_key = st.secrets.get("JINA_API_KEY", "")
+    if not jina_api_key:
+        jina_api_key = st.text_input("Podaj klucz JINA API (opcjonalnie dla płatnego pakietu):", type="password")
+        
+    st.session_state.jina_api_key = jina_api_key
+        
     st.markdown("---")
     st.title("🧭 Nawigacja")
     
@@ -151,6 +158,10 @@ elif st.session_state.step == 2:
             for idx, url in enumerate(urls):
                 try:
                     headers = {"Accept": "application/json"}
+                    
+                    if st.session_state.get("jina_api_key"):
+                        headers["Authorization"] = f"Bearer {st.session_state.jina_api_key}"
+                        
                     if scrape_mode == "Pomiń cache (X-No-Cache)":
                         headers["X-No-Cache"] = "true"
                     if css_include:
