@@ -363,7 +363,6 @@ Struktura JSON ma wyglądać następująco:
                             "analysis": analysis_text,
                             "seed_keywords": phrases
                         })
-                        })
                     else:
                         st.warning(f"Brak zawartości do analizy dla {url}")
                 except Exception as e:
