@@ -486,14 +486,10 @@ Struktura JSON:
                 if "URL" not in df_gap.columns:
                     st.error("Plik nie zawiera kolumny 'URL'.")
                 else:
-                    # Deduplikacja po Top keyword przed analizą
-                    if "Top keyword" in df_gap.columns:
-                        if "Traffic" in df_gap.columns:
-                            df_gap["Traffic"] = pd.to_numeric(df_gap["Traffic"], errors='coerce')
-                            df_gap = df_gap.sort_values(by="Traffic", ascending=False)
-                        df_gap = df_gap.drop_duplicates(subset=["Top keyword"], keep="first")
+                    # Deduplikacja po samym adresie URL (na wypadek duplikatów w eksporcie)
+                    df_gap = df_gap.drop_duplicates(subset=["URL"])
                         
-                    st.success(f"Wczytano {len(df_gap)} unikalnych stron (po deduplikacji) do analizy. Uruchamiam AI w trybie paczkowym...")
+                    st.success(f"Wczytano {len(df_gap)} unikalnych stron do analizy. Uruchamiam AI w trybie paczkowym...")
                     
                     # Przygotowanie kontekstu o produktach
                     products_context = "Lista naszych produktów wraz z analizą:\n"
