@@ -254,20 +254,21 @@ Treść strony:
 {content}
 
 Zadanie:
-1. Jaki problem medyczny/kosmetyczny ten produkt rozwiązuje?
-2. Jakie ma ograniczenia (np. od jakiego wieku można go stosować)?
-3. Co może powodować dane schorzenie i dla kogo ten produkt jest? (Zastanów się szerzej nad przyczynami dolegliwości)
-4. Wygeneruj max 10 najważniejszych fraz kluczowych (seed keywords, od 1 do 3 słów), które wprost dotyczą problemu i rozwiązania. Odpowiedź wypisz tylko jako listę fraz po przecinku.
-
-Zwróć odpowiedź w formacie czytelnym dla człowieka z wyróżnieniem powyższych punktów.
-W punkcie 4 napisz TYLKO: "FRAZY BAZOWE: fraza 1, fraza 2, fraza 3"."""
+Musisz zwrócić odpowiedź jako poprawny obiekt JSON.
+Struktura JSON ma wyglądać następująco:
+{
+  "problem": "Opisz krótko jaki problem medyczny/kosmetyczny ten produkt rozwiązuje",
+  "ograniczenia": "Opisz ograniczenia (np. wiek, przeciwwskazania)",
+  "przyczyny": "Co powoduje schorzenie i dla kogo produkt jest przeznaczony?",
+  "seed_keywords": ["fraza 1", "fraza 2"] // max 10 najważniejszych fraz (od 1 do 3 słów)
+}"""
         step2_user = st.text_area("User Prompt (użyj {url} i {content})", value=def_user_2, height=300, key="step2_user")
         
         col1, col2 = st.columns(2)
         with col1:
             step2_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step2_temp")
         with col2:
-            step2_tokens = st.number_input("Max Tokens", 100, 4000, 1500, key="step2_tokens")
+            step2_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step2_tokens")
         
     if st.button("Pobierz i Analizuj", type="primary"):
         urls = [u.strip() for u in product_urls_text.split("\n") if u.strip()]
@@ -306,6 +307,7 @@ W punkcie 4 napisz TYLKO: "FRAZY BAZOWE: fraza 1, fraza 2, fraza 3"."""
                             model=step2_model,
                             temperature=step2_temp,
                             max_tokens=step2_tokens,
+                            response_format={ "type": "json_object" },
                             messages=[
                                 {"role": "system", "content": step2_sys},
                                 {"role": "user", "content": prompt}
@@ -313,16 +315,20 @@ W punkcie 4 napisz TYLKO: "FRAZY BAZOWE: fraza 1, fraza 2, fraza 3"."""
                         )
                         result = ai_response.choices[0].message.content
                         
-                        # Prosta ekstrakcja fraz za pomocą Regex z odpowiedzi:
-                        phrases = []
-                        match = re.search(r"FRAZY BAZOWE:(.*)", result, re.IGNORECASE)
-                        if match:
-                            raw_phrases = match.group(1).split(",")
-                            phrases = [p.replace('*', '').strip().lower() for p in raw_phrases if p.replace('*', '').strip()]
+                        import json
+                        try:
+                            data = json.loads(result)
+                            analysis_text = f"**Problem:** {data.get('problem', '')}\n\n**Ograniczenia:** {data.get('ograniczenia', '')}\n\n**Przyczyny:** {data.get('przyczyny', '')}"
+                            raw_phrases = data.get('seed_keywords', [])
+                            phrases = [str(p).replace('*', '').strip().lower() for p in raw_phrases if str(p).strip()]
+                        except Exception as e:
+                            analysis_text = result
+                            phrases = []
+                            st.warning(f"Nie udało się sparsować JSON dla {url}: {e}")
                             
                         product_analysis.append({
                             "url": url,
-                            "analysis": result,
+                            "analysis": analysis_text,
                             "seed_keywords": phrases
                         })
                     else:
@@ -410,19 +416,21 @@ Oto jej Tytuł (Title): {target_title}
 Oto produkty, które klient sprzedaje:
 {products_context}
 
-Oceń, czy temat tej strony konkurencji nadaje się na wpis blogowy na naszej stronie, który mógłby wprost kierować do naszego produktu.
-Jeśli NIE nadaje się (jest to np. e-sklep bez bloga, temat zupełnie z innej beczki, lub nie mamy do tego odpowiedniego produktu), odpowiedz jednym słowem: ODRZUCAM.
-Jeśli nadaje się na poradnik, napisz: 
-ZAAKCEPTOWANO
-Zaproponowany Produkt: [Adres URL naszego produktu z podanej listy]
-Dlaczego powiązano: [Krótki powód w jednym zdaniu]"""
-        step4_user = st.text_area("User Prompt (użyj {target_url}, {target_title}, {products_context})", value=def_user_4, height=300, key="step4_user")
+Oceń BARDZO RYGORYSTYCZNIE, czy ta strona konkurencji jest artykułem poradnikowym (blogowym), który idealnie nadaje się na wpis na naszej stronie i wprost doprowadzi do sprzedaży jednego z naszych produktów.
+Jeśli to jest kategoria sklepu, podstrona ofertowa innej firmy, lub temat zbyt luźno powiązany - ODRZUĆ. Zwróć tylko poprawny obiekt JSON.
+Struktura JSON:
+{
+  "ocena": "ZAAKCEPTOWANO" lub "ODRZUCAM",
+  "produkt": "Adres URL naszego produktu z podanej listy (lub puste jeśli brak)",
+  "uzasadnienie": "Krótkie uzasadnienie decyzji dlaczego powiązano z produktem lub dlaczego odrzucono (1 zdanie)"
+}"""
+        step4_user = st.text_area("User Prompt (użyj {target_url}, {target_title}, {products_context})", value=def_user_4, height=350, key="step4_user")
         
         col1, col2 = st.columns(2)
         with col1:
             step4_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step4_temp")
         with col2:
-            step4_tokens = st.number_input("Max Tokens", 100, 4000, 150, key="step4_tokens")
+            step4_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step4_tokens")
             
     if st.button("Rozpocznij Dopasowywanie AI", type="primary"):
         if gap_file and "product_analysis" in st.session_state:
@@ -448,7 +456,14 @@ Dlaczego powiązano: [Krótki powód w jednym zdaniu]"""
                 if "URL" not in df_gap.columns:
                     st.error("Plik nie zawiera kolumny 'URL'.")
                 else:
-                    st.success(f"Wczytano {len(df_gap)} stron do analizy. Uruchamiam AI w trybie paczkowym (batching)...")
+                    # Deduplikacja po Top keyword przed analizą
+                    if "Top keyword" in df_gap.columns:
+                        if "Traffic" in df_gap.columns:
+                            df_gap["Traffic"] = pd.to_numeric(df_gap["Traffic"], errors='coerce')
+                            df_gap = df_gap.sort_values(by="Traffic", ascending=False)
+                        df_gap = df_gap.drop_duplicates(subset=["Top keyword"], keep="first")
+                        
+                    st.success(f"Wczytano {len(df_gap)} unikalnych stron (po deduplikacji) do analizy. Uruchamiam AI w trybie paczkowym...")
                     
                     # Przygotowanie kontekstu o produktach
                     products_context = "Lista naszych produktów wraz z analizą:\n"
@@ -474,18 +489,38 @@ Dlaczego powiązano: [Krótki powód w jednym zdaniu]"""
                                 model=step4_model,
                                 temperature=step4_temp,
                                 max_tokens=step4_tokens,
+                                response_format={ "type": "json_object" },
                                 messages=[
                                     {"role": "system", "content": step4_sys},
                                     {"role": "user", "content": prompt}
                                 ]
                             )
                             ans = ai_response.choices[0].message.content.strip()
-                            if "ODRZUCAM" not in ans.upper():
-                                results.append({
-                                    "Competitor URL": target_url,
-                                    "Competitor Title": target_title,
-                                    "AI Verdict": ans
-                                })
+                            
+                            import json
+                            try:
+                                data = json.loads(ans)
+                                ocena = data.get("ocena", "ODRZUCAM").upper()
+                                produkt = data.get("produkt", "")
+                                uzasadnienie = data.get("uzasadnienie", "")
+                                
+                                if "ZAAKCEPTOWANO" in ocena:
+                                    results.append({
+                                        "Competitor URL": target_url,
+                                        "Competitor Title": target_title,
+                                        "Recommended Product": produkt,
+                                        "Reasoning": uzasadnienie,
+                                        "AI Verdict": ocena
+                                    })
+                            except:
+                                if "ZAAKCEPTOWANO" in ans.upper():
+                                    results.append({
+                                        "Competitor URL": target_url,
+                                        "Competitor Title": target_title,
+                                        "Recommended Product": "Błąd JSON",
+                                        "Reasoning": ans,
+                                        "AI Verdict": "ZAAKCEPTOWANO"
+                                    })
                         except Exception as e:
                             st.warning(f"Błąd OpenAI przy wierszu {idx}: {e}")
                             
@@ -541,7 +576,7 @@ Zwróć wynik w ładnym formacie markdown (Tytuł klastra, frazy, sugerowane art
         with col1:
             step5_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step5_temp")
         with col2:
-            step5_tokens = st.number_input("Max Tokens", 100, 4000, 1500, key="step5_tokens")
+            step5_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step5_tokens")
             
     if st.button("Rozpocznij Analizę Brandu AI", type="primary"):
         brand_kws = []
