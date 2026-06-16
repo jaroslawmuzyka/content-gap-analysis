@@ -399,6 +399,9 @@ elif st.session_state.step == 4:
                             # Fallback do zwykłego CSV przecinkowego
                             gap_file.seek(0)
                             df_gap = pd.read_csv(gap_file)
+                except Exception as e:
+                    st.error(f"Nie udało się odczytać pliku: {e}")
+                    df_gap = pd.DataFrame()
                 
                 # Upewniamy się, że są odpowiednie kolumny np. "URL" oraz "Title"
                 if "URL" not in df_gap.columns:
