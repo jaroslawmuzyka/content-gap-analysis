@@ -180,16 +180,51 @@ if st.session_state.step == 1:
                     df_combined = df_combined[df_combined["URL"].astype(str).str.strip() != ""]
                     
                     st.session_state.df_domain = df_combined
-                    st.success("Pliki zostały skonsolidowane! Wyniki pogrupowane po adresie URL.")
-                    st.dataframe(df_combined.head(100)) # Podgląd pierwszych 100 wyników
                     
-                    # Przycisk pobierania do XLSX
-                    st.download_button(
-                        label="📥 Pobierz skonsolidowane dane (XLSX)",
-                        data=to_excel(df_combined),
-                        file_name='skonsolidowane_frazy_grupy.xlsx',
-                        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                    )
+                    # Generowanie rozszerzonej (niepogrupowanej) wersji tabeli
+                    df_a_raw = df_a_clean.copy()
+                    df_a_raw["Source"] = "Ahrefs"
+                    df_s_raw = df_s_clean.copy()
+                    df_s_raw["Source"] = "Senuto"
+                    
+                    df_unpivoted = pd.concat([df_a_raw, df_s_raw], ignore_index=True)
+                    df_unpivoted = df_unpivoted.rename(columns={"URL_Norm": "URL"})
+                    df_unpivoted = df_unpivoted.dropna(subset=["URL", "Keyword"])
+                    df_unpivoted = df_unpivoted[df_unpivoted["URL"].astype(str).str.strip() != ""]
+                    
+                    # Deduplikacja po URL i Keyword
+                    df_unpivoted["kw_lower"] = df_unpivoted["Keyword"].astype(str).str.lower()
+                    df_unpivoted = df_unpivoted.drop_duplicates(subset=["kw_lower", "URL"])
+                    df_unpivoted = df_unpivoted.drop(columns=["kw_lower"])
+                    
+                    # Zabezpieczenie kolejności
+                    u_cols = ["URL", "Keyword", "Volume", "Traffic", "Position", "Source"]
+                    u_cols = [c for c in u_cols if c in df_unpivoted.columns]
+                    df_unpivoted = df_unpivoted[u_cols]
+                    
+                    st.session_state.df_unpivoted = df_unpivoted
+                    
+                    st.success("Pliki zostały skonsolidowane! Wyniki zebrane po adresie URL.")
+                    
+                    tab1, tab2 = st.tabs(["Widok Pogrupowany (URL)", "Widok Rozszerzony (Frazy)"])
+                    
+                    with tab1:
+                        st.dataframe(df_combined.head(100)) # Podgląd pierwszych 100 wyników
+                        st.download_button(
+                            label="📥 Pobierz Widok Pogrupowany (XLSX)",
+                            data=to_excel(df_combined),
+                            file_name='skonsolidowane_frazy_grupy.xlsx',
+                            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        )
+                        
+                    with tab2:
+                        st.dataframe(df_unpivoted.head(100))
+                        st.download_button(
+                            label="📥 Pobierz Widok Rozszerzony (XLSX)",
+                            data=to_excel(df_unpivoted),
+                            file_name='skonsolidowane_frazy_rozszerzone.xlsx',
+                            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        )
         else:
             st.warning("Proszę wgrać oba pliki (Ahrefs i Senuto).")
 
@@ -305,13 +340,17 @@ elif st.session_state.step == 3:
         
         # Pobieramy frazy z pliku domenowego
         domain_phrases = []
-        if "Senuto_Keywords" in st.session_state.df_domain.columns:
-            for kws in st.session_state.df_domain["Senuto_Keywords"].dropna():
-                domain_phrases.extend([k.strip() for k in str(kws).split(",") if k.strip()])
-        if "Ahrefs_Keywords" in st.session_state.df_domain.columns:
-            for kws in st.session_state.df_domain["Ahrefs_Keywords"].dropna():
-                domain_phrases.extend([k.strip() for k in str(kws).split(",") if k.strip()])
-                
+        if "df_unpivoted" in st.session_state:
+            domain_phrases = st.session_state.df_unpivoted["Keyword"].dropna().tolist()
+        else:
+            # Fallback jeśli df_unpivoted nie istnieje z jakiegoś powodu
+            if "Senuto_Keywords" in st.session_state.df_domain.columns:
+                for kws in st.session_state.df_domain["Senuto_Keywords"].dropna():
+                    domain_phrases.extend([k.strip() for k in str(kws).split(",") if k.strip()])
+            if "Ahrefs_Keywords" in st.session_state.df_domain.columns:
+                for kws in st.session_state.df_domain["Ahrefs_Keywords"].dropna():
+                    domain_phrases.extend([k.strip() for k in str(kws).split(",") if k.strip()])
+                    
         domain_phrases_set = set(str(p).lower().strip() for p in domain_phrases)
         
         # Łączymy
