@@ -530,7 +530,6 @@ Struktura JSON:
                                 produkt = data.get("produkt", "")
                                 uzasadnienie = data.get("uzasadnienie", "")
                                 
-                                if "ZAAKCEPTOWANO" in ocena:
                                     results.append({
                                         "Competitor URL": target_url,
                                         "Competitor Title": target_title,
@@ -539,14 +538,13 @@ Struktura JSON:
                                         "AI Verdict": ocena
                                     })
                             except:
-                                if "ZAAKCEPTOWANO" in ans.upper():
-                                    results.append({
-                                        "Competitor URL": target_url,
-                                        "Competitor Title": target_title,
-                                        "Recommended Product": "Błąd JSON",
-                                        "Reasoning": ans,
-                                        "AI Verdict": "ZAAKCEPTOWANO"
-                                    })
+                                results.append({
+                                    "Competitor URL": target_url,
+                                    "Competitor Title": target_title,
+                                    "Recommended Product": "Błąd JSON",
+                                    "Reasoning": ans,
+                                    "AI Verdict": "BŁĄD/ODRZUCAM"
+                                })
                         except Exception as e:
                             st.warning(f"Błąd OpenAI przy wierszu {idx}: {e}")
                             
@@ -555,17 +553,27 @@ Struktura JSON:
                     if results:
                         df_results = pd.DataFrame(results)
                         st.session_state.df_gap_results = df_results
-                        st.success("Analiza zakończona! Poniżej przefiltrowane wyniki:")
-                        st.dataframe(df_results)
+                        st.success("Analiza zakończona!")
+                        
+                        df_accepted = df_results[df_results['AI Verdict'].str.contains("ZAAKCEPTOWANO", na=False)]
+                        df_rejected = df_results[~df_results['AI Verdict'].str.contains("ZAAKCEPTOWANO", na=False)]
+                        
+                        tab1, tab2 = st.tabs(["✅ Zaakceptowane", "❌ Odrzucone"])
+                        with tab1:
+                            st.write(f"Zaakceptowano: {len(df_accepted)}")
+                            st.dataframe(df_accepted)
+                        with tab2:
+                            st.write(f"Odrzucono: {len(df_rejected)}")
+                            st.dataframe(df_rejected)
                         
                         st.download_button(
-                            label="📥 Pobierz wyniki Gap (XLSX)",
+                            label="📥 Pobierz WSZYSTKIE wyniki Gap (XLSX)",
                             data=to_excel(df_results),
-                            file_name='content_gap_wyniki.xlsx',
+                            file_name='content_gap_wyniki_wszystkie.xlsx',
                             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                         )
                     else:
-                        st.warning("Żaden z adresów nie został dopasowany do naszych produktów.")
+                        st.warning("Żaden z adresów nie został przeanalizowany.")
         else:
             st.warning("Upewnij się, że wgrałeś plik oraz że w Kroku 2 zostały przeanalizowane produkty.")
 
