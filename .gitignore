@@ -1,0 +1,12 @@
+# Data files
+*.csv
+*.xlsx
+*.xls
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# Streamlit
+.streamlit/
