@@ -235,8 +235,6 @@ if st.session_state.step == 1:
 elif st.session_state.step == 2:
     st.header("Krok 2: Analiza Produktów (Jina Reader + AI)")
     
-    product_urls_text = st.text_area("Wklej adresy URL produktów klienta (po jednym w linii):", height=150)
-    
     input_mode = st.radio("Sposób wprowadzania produktów:", ["Automatycznie przez URL (Jina Reader)", "Wpisz ręcznie opisy"])
     
     if input_mode == "Automatycznie przez URL (Jina Reader)":
