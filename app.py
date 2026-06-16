@@ -175,6 +175,10 @@ if st.session_state.step == 1:
                     cols = ["URL"] + [c for c in df_combined.columns if c != "URL"]
                     df_combined = df_combined[cols]
                     
+                    # Usuwanie pustych adresów URL (oraz NaN)
+                    df_combined = df_combined.dropna(subset=["URL"])
+                    df_combined = df_combined[df_combined["URL"].astype(str).str.strip() != ""]
+                    
                     st.session_state.df_domain = df_combined
                     st.success("Pliki zostały skonsolidowane! Wyniki pogrupowane po adresie URL.")
                     st.dataframe(df_combined.head(100)) # Podgląd pierwszych 100 wyników
