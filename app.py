@@ -16,12 +16,7 @@ if "step" not in st.session_state:
 # Pasek boczny na konfigurację i nawigację
 with st.sidebar:
     st.title("⚙️ Ustawienia")
-    
-    # Modele OpenAI
-    models = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
-    selected_model = st.selectbox("Wybierz model OpenAI:", models, index=0)
-    st.session_state.selected_model = selected_model
-    
+    # (Wybór modelu usunięty stąd - przeniesiony do konkretnych kroków)
     # Klucz API do OpenAI (jeśli chcemy pozwolić użytkownikowi na własny w UI, ale z założenia bierzemy z secrets)
     openai_api_key = st.secrets.get("OPENAI_API_KEY", "")
     if not openai_api_key:
@@ -247,6 +242,33 @@ elif st.session_state.step == 2:
         css_exclude = st.text_input("Selektor CSS do wykluczenia (np. .footer, nav):")
         scrape_mode = st.selectbox("Tryb Jina Reader", ["Domyslnie", "Pomiń cache (X-No-Cache)"])
         
+    with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
+        models = ["gpt-5", "gpt5-mini", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+        step2_model = st.selectbox("Wybierz model OpenAI:", models, index=models.index("gpt5-mini") if "gpt5-mini" in models else 0, key="step2_model")
+        
+        step2_sys = st.text_area("System Prompt", value="Jesteś ekspertem SEO i farmacji/kosmetyki.", key="step2_sys")
+        
+        def_user_2 = """Przeanalizuj treść opisu produktu ze strony internetowej.
+Strona: {url}
+Treść strony:
+{content}
+
+Zadanie:
+1. Jaki problem medyczny/kosmetyczny ten produkt rozwiązuje?
+2. Jakie ma ograniczenia (np. od jakiego wieku można go stosować)?
+3. Co może powodować dane schorzenie i dla kogo ten produkt jest? (Zastanów się szerzej nad przyczynami dolegliwości)
+4. Wygeneruj max 10 najważniejszych fraz kluczowych (seed keywords, od 1 do 3 słów), które wprost dotyczą problemu i rozwiązania. Odpowiedź wypisz tylko jako listę fraz po przecinku.
+
+Zwróć odpowiedź w formacie czytelnym dla człowieka z wyróżnieniem powyższych punktów.
+W punkcie 4 napisz TYLKO: "FRAZY BAZOWE: fraza 1, fraza 2, fraza 3"."""
+        step2_user = st.text_area("User Prompt (użyj {url} i {content})", value=def_user_2, height=300, key="step2_user")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            step2_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step2_temp")
+        with col2:
+            step2_tokens = st.number_input("Max Tokens", 100, 4000, 1500, key="step2_tokens")
+        
     if st.button("Pobierz i Analizuj", type="primary"):
         urls = [u.strip() for u in product_urls_text.split("\n") if u.strip()]
         if not urls:
@@ -277,25 +299,17 @@ elif st.session_state.step == 2:
                         content = response.json().get('data', {}).get('content', response.text)
                         
                         # Tutaj wywołanie OpenAI API do analizy produktu
-                        prompt = f"""
-                        Jesteś ekspertem SEO i farmacji/kosmetyki. Przeanalizuj treść opisu produktu ze strony internetowej.
-                        Strona: {url}
-                        Treść strony:
-                        {content[:4000]} # Limitujemy znaki dla oszczędności tokenów i kontekstu
+                        prompt = step2_user.replace("{url}", url).replace("{content}", content[:4000])
                         
-                        Zadanie:
-                        1. Jaki problem medyczny/kosmetyczny ten produkt rozwiązuje?
-                        2. Jakie ma ograniczenia (np. od jakiego wieku można go stosować)?
-                        3. Co może powodować dane schorzenie i dla kogo ten produkt jest? (Zastanów się szerzej nad przyczynami dolegliwości)
-                        4. Wygeneruj max 10 najważniejszych fraz kluczowych (seed keywords, od 1 do 3 słów), które wprost dotyczą problemu i rozwiązania. Odpowiedź wypisz tylko jako listę fraz po przecinku.
-                        
-                        Zwróć odpowiedź w formacie czytelnym dla człowieka z wyróżnieniem powyższych punktów.
-                        W punkcie 4 napisz TYLKO: "FRAZY BAZOWE: fraza 1, fraza 2, fraza 3".
-                        """
                         client = openai.OpenAI(api_key=openai_api_key)
                         ai_response = client.chat.completions.create(
-                            model=st.session_state.selected_model,
-                            messages=[{"role": "user", "content": prompt}]
+                            model=step2_model,
+                            temperature=step2_temp,
+                            max_tokens=step2_tokens,
+                            messages=[
+                                {"role": "system", "content": step2_sys},
+                                {"role": "user", "content": prompt}
+                            ]
                         )
                         result = ai_response.choices[0].message.content
                         
@@ -383,6 +397,33 @@ elif st.session_state.step == 4:
     
     gap_file = st.file_uploader("Wgraj plik z Ahrefs (CSV UTF-16LE, standardowe CSV lub XLSX)", type=['csv', 'xlsx', 'xls'])
     
+    with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
+        models = ["gpt-5", "gpt5-mini", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+        step4_model = st.selectbox("Wybierz model OpenAI:", models, index=models.index("gpt5-mini") if "gpt5-mini" in models else 0, key="step4_model")
+        
+        step4_sys = st.text_area("System Prompt", value="Jesteś ekspertem SEO.", key="step4_sys")
+        
+        def_user_4 = """Zadanie: Analiza Content Gap.
+Oto URL obcej strony: {target_url}
+Oto jej Tytuł (Title): {target_title}
+
+Oto produkty, które klient sprzedaje:
+{products_context}
+
+Oceń, czy temat tej strony konkurencji nadaje się na wpis blogowy na naszej stronie, który mógłby wprost kierować do naszego produktu.
+Jeśli NIE nadaje się (jest to np. e-sklep bez bloga, temat zupełnie z innej beczki, lub nie mamy do tego odpowiedniego produktu), odpowiedz jednym słowem: ODRZUCAM.
+Jeśli nadaje się na poradnik, napisz: 
+ZAAKCEPTOWANO
+Zaproponowany Produkt: [Adres URL naszego produktu z podanej listy]
+Dlaczego powiązano: [Krótki powód w jednym zdaniu]"""
+        step4_user = st.text_area("User Prompt (użyj {target_url}, {target_title}, {products_context})", value=def_user_4, height=300, key="step4_user")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            step4_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step4_temp")
+        with col2:
+            step4_tokens = st.number_input("Max Tokens", 100, 4000, 150, key="step4_tokens")
+            
     if st.button("Rozpocznij Dopasowywanie AI", type="primary"):
         if gap_file and "product_analysis" in st.session_state:
             with st.spinner("Parsowanie pliku..."):
@@ -426,26 +467,17 @@ elif st.session_state.step == 4:
                         target_url = row.get("URL", "")
                         target_title = row.get("Title", "")
                         
-                        prompt = f"""
-                        Zadanie: Analiza Content Gap.
-                        Oto URL obcej strony: {target_url}
-                        Oto jej Tytuł (Title): {target_title}
+                        prompt = step4_user.replace("{target_url}", target_url).replace("{target_title}", target_title).replace("{products_context}", products_context)
                         
-                        Oto produkty, które klient sprzedaje:
-                        {products_context}
-                        
-                        Oceń, czy temat tej strony konkurencji nadaje się na wpis blogowy na naszej stronie, który mógłby wprost kierować do naszego produktu.
-                        Jeśli NIE nadaje się (jest to np. e-sklep bez bloga, temat zupełnie z innej beczki, lub nie mamy do tego odpowiedniego produktu), odpowiedz jednym słowem: ODRZUCAM.
-                        Jeśli nadaje się na poradnik, napisz: 
-                        ZAAKCEPTOWANO
-                        Zaproponowany Produkt: [Adres URL naszego produktu z podanej listy]
-                        Dlaczego powiązano: [Krótki powód w jednym zdaniu]
-                        """
                         try:
                             ai_response = client.chat.completions.create(
-                                model=st.session_state.selected_model,
-                                messages=[{"role": "user", "content": prompt}],
-                                max_tokens=150
+                                model=step4_model,
+                                temperature=step4_temp,
+                                max_tokens=step4_tokens,
+                                messages=[
+                                    {"role": "system", "content": step4_sys},
+                                    {"role": "user", "content": prompt}
+                                ]
                             )
                             ans = ai_response.choices[0].message.content.strip()
                             if "ODRZUCAM" not in ans.upper():
@@ -490,6 +522,27 @@ elif st.session_state.step == 5:
     with col2:
         brand_senuto = st.file_uploader("Brand Keywords Senuto (XLSX)", type=['xlsx', 'xls'])
         
+    with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
+        models = ["gpt-5", "gpt5-mini", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+        step5_model = st.selectbox("Wybierz model OpenAI:", models, index=models.index("gpt5-mini") if "gpt5-mini" in models else 0, key="step5_model")
+        
+        step5_sys = st.text_area("System Prompt", value="Jesteś ekspertem od analizy intencji słów kluczowych.", key="step5_sys")
+        
+        def_user_5 = """Oto lista zapytań użytkowników zawierających nazwę brandu/produktu klienta:
+{chunk}
+
+Zadanie:
+Pogrupuj te zapytania na klastry intencji (np. Pytania o stosowanie, Skutki uboczne, Wiek dziecka, Opinie).
+Zaproponuj 3 gotowe tematy poradnikowe na bloga, które zbiorą ruch z tych zapytań i najlepiej na nie odpowiedzą.
+Zwróć wynik w ładnym formacie markdown (Tytuł klastra, frazy, sugerowane artykuły)."""
+        step5_user = st.text_area("User Prompt (użyj {chunk} jako zmiennej na paczkę fraz)", value=def_user_5, height=200, key="step5_user")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            step5_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step5_temp")
+        with col2:
+            step5_tokens = st.number_input("Max Tokens", 100, 4000, 1500, key="step5_tokens")
+            
     if st.button("Rozpocznij Analizę Brandu AI", type="primary"):
         brand_kws = []
         if brand_ahrefs:
@@ -520,19 +573,16 @@ elif st.session_state.step == 5:
             
             my_bar = st.progress(0, text="Analiza zapytań brandowych...")
             for i, chunk in enumerate(chunks):
-                prompt = f"""
-                Oto lista zapytań użytkowników zawierających nazwę brandu/produktu klienta:
-                {chunk}
-                
-                Zadanie:
-                Pogrupuj te zapytania na klastry intencji (np. Pytania o stosowanie, Skutki uboczne, Wiek dziecka, Opinie).
-                Zaproponuj 3 gotowe tematy poradnikowe na bloga, które zbiorą ruch z tych zapytań i najlepiej na nie odpowiedzą.
-                Zwróć wynik w ładnym formacie markdown (Tytuł klastra, frazy, sugerowane artykuły).
-                """
+                prompt = step5_user.replace("{chunk}", str(chunk))
                 try:
                     ai_response = client.chat.completions.create(
-                        model=st.session_state.selected_model,
-                        messages=[{"role": "user", "content": prompt}]
+                        model=step5_model,
+                        temperature=step5_temp,
+                        max_tokens=step5_tokens,
+                        messages=[
+                            {"role": "system", "content": step5_sys},
+                            {"role": "user", "content": prompt}
+                        ]
                     )
                     all_brand_ideas += ai_response.choices[0].message.content + "\n\n---\n\n"
                 except Exception as e:
