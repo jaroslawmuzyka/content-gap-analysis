@@ -310,7 +310,9 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                     ]
                 }
                 if "temperature" in params_5a: call_a_kwargs["temperature"] = params_5a["temperature"]
-                if "max_tokens" in params_5a: call_a_kwargs["max_tokens"] = params_5a["max_tokens"]
+                if "max_tokens" in params_5a:
+                                if any(m in params_5a["model"] for m in ["gpt-5", "o1", "o3"]): call_a_kwargs["max_completion_tokens"] = params_5a["max_tokens"]
+                                else: call_a_kwargs["max_tokens"] = params_5a["max_tokens"]
                 if "reasoning_effort" in params_5a: call_a_kwargs["reasoning_effort"] = params_5a["reasoning_effort"]
                     
                 resp_a = client.chat.completions.create(**call_a_kwargs)
@@ -346,7 +348,9 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 ]
             }
             if "temperature" in params_5b: call_b_kwargs["temperature"] = params_5b["temperature"]
-            if "max_tokens" in params_5b: call_b_kwargs["max_tokens"] = params_5b["max_tokens"]
+            if "max_tokens" in params_5b:
+                                if any(m in params_5b["model"] for m in ["gpt-5", "o1", "o3"]): call_b_kwargs["max_completion_tokens"] = params_5b["max_tokens"]
+                                else: call_b_kwargs["max_tokens"] = params_5b["max_tokens"]
             if "reasoning_effort" in params_5b: call_b_kwargs["reasoning_effort"] = params_5b["reasoning_effort"]
                 
             resp_b = client.chat.completions.create(**call_b_kwargs)

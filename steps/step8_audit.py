@@ -182,7 +182,9 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                             ]
                         }
                         if "temperature" in params_8: call_kwargs["temperature"] = params_8["temperature"]
-                        if "max_tokens" in params_8: call_kwargs["max_tokens"] = params_8["max_tokens"]
+                        if "max_tokens" in params_8:
+                                if any(m in params_8["model"] for m in ["gpt-5", "o1", "o3"]): call_kwargs["max_completion_tokens"] = params_8["max_tokens"]
+                                else: call_kwargs["max_tokens"] = params_8["max_tokens"]
                         if "reasoning_effort" in params_8: call_kwargs["reasoning_effort"] = params_8["reasoning_effort"]
                             
                         ai_response = client.chat.completions.create(**call_kwargs)

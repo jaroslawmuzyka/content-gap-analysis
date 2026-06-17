@@ -956,7 +956,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                         prompt_1 = step2_user_1.replace("{url}", url).replace("{content}", content_clipped)
                         call_1_kwargs = {"model": params_1["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_1}, {"role": "user", "content": prompt_1}]}
                         if "temperature" in params_1: call_1_kwargs["temperature"] = params_1["temperature"]
-                        if "max_tokens" in params_1: call_1_kwargs["max_tokens"] = params_1["max_tokens"]
+                        if "max_tokens" in params_1:
+                                if any(m in params_1["model"] for m in ["gpt-5", "o1", "o3"]): call_1_kwargs["max_completion_tokens"] = params_1["max_tokens"]
+                                else: call_1_kwargs["max_tokens"] = params_1["max_tokens"]
                         if "reasoning_effort" in params_1: call_1_kwargs["reasoning_effort"] = params_1["reasoning_effort"]
                         r1 = client.chat.completions.create(**call_1_kwargs).choices[0].message.content
                         
@@ -964,7 +966,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                         prompt_2 = step2_user_2.replace("{product_facts_json}", r1)
                         call_2_kwargs = {"model": params_2["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_2}, {"role": "user", "content": prompt_2}]}
                         if "temperature" in params_2: call_2_kwargs["temperature"] = params_2["temperature"]
-                        if "max_tokens" in params_2: call_2_kwargs["max_tokens"] = params_2["max_tokens"]
+                        if "max_tokens" in params_2:
+                                if any(m in params_2["model"] for m in ["gpt-5", "o1", "o3"]): call_2_kwargs["max_completion_tokens"] = params_2["max_tokens"]
+                                else: call_2_kwargs["max_tokens"] = params_2["max_tokens"]
                         if "reasoning_effort" in params_2: call_2_kwargs["reasoning_effort"] = params_2["reasoning_effort"]
                         r2 = client.chat.completions.create(**call_2_kwargs).choices[0].message.content
                         
@@ -972,7 +976,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                         prompt_3 = step2_user_3.replace("{product_facts_json}", r1).replace("{max_keywords}", "30")
                         call_3_kwargs = {"model": params_3["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_3}, {"role": "user", "content": prompt_3}]}
                         if "temperature" in params_3: call_3_kwargs["temperature"] = params_3["temperature"]
-                        if "max_tokens" in params_3: call_3_kwargs["max_tokens"] = params_3["max_tokens"]
+                        if "max_tokens" in params_3:
+                                if any(m in params_3["model"] for m in ["gpt-5", "o1", "o3"]): call_3_kwargs["max_completion_tokens"] = params_3["max_tokens"]
+                                else: call_3_kwargs["max_tokens"] = params_3["max_tokens"]
                         if "reasoning_effort" in params_3: call_3_kwargs["reasoning_effort"] = params_3["reasoning_effort"]
                         r3 = client.chat.completions.create(**call_3_kwargs).choices[0].message.content
                         
@@ -980,7 +986,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                         prompt_4 = step2_user_4.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2).replace("{max_keywords}", "50")
                         call_4_kwargs = {"model": params_4["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_4}, {"role": "user", "content": prompt_4}]}
                         if "temperature" in params_4: call_4_kwargs["temperature"] = params_4["temperature"]
-                        if "max_tokens" in params_4: call_4_kwargs["max_tokens"] = params_4["max_tokens"]
+                        if "max_tokens" in params_4:
+                                if any(m in params_4["model"] for m in ["gpt-5", "o1", "o3"]): call_4_kwargs["max_completion_tokens"] = params_4["max_tokens"]
+                                else: call_4_kwargs["max_tokens"] = params_4["max_tokens"]
                         if "reasoning_effort" in params_4: call_4_kwargs["reasoning_effort"] = params_4["reasoning_effort"]
                         r4 = client.chat.completions.create(**call_4_kwargs).choices[0].message.content
                         
@@ -988,7 +996,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                         prompt_5 = step2_user_5.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2)
                         call_5_kwargs = {"model": params_5["model"], "messages": [{"role": "system", "content": step2_sys_5}, {"role": "user", "content": prompt_5}]}
                         if "temperature" in params_5: call_5_kwargs["temperature"] = params_5["temperature"]
-                        if "max_tokens" in params_5: call_5_kwargs["max_tokens"] = params_5["max_tokens"]
+                        if "max_tokens" in params_5:
+                                if any(m in params_5["model"] for m in ["gpt-5", "o1", "o3"]): call_5_kwargs["max_completion_tokens"] = params_5["max_tokens"]
+                                else: call_5_kwargs["max_tokens"] = params_5["max_tokens"]
                         if "reasoning_effort" in params_5: call_5_kwargs["reasoning_effort"] = params_5["reasoning_effort"]
                         r5 = client.chat.completions.create(**call_5_kwargs).choices[0].message.content
                         

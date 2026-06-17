@@ -20,10 +20,15 @@ from openpyxl.utils import get_column_letter
 
 def to_excel_multi(sheets_dict):
     output = BytesIO()
+    has_sheets = False
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         for sheet_name, df in sheets_dict.items():
             if df is not None and not df.empty:
                 df.to_excel(writer, index=False, sheet_name=sheet_name)
+                has_sheets = True
+        
+        if not has_sheets:
+            pd.DataFrame({"Informacja": ["Brak danych (puste tabele)"]}).to_excel(writer, index=False, sheet_name="Brak Danych")
                 
         # Access the workbook to apply formatting
         workbook = writer.book
