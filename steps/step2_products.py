@@ -32,11 +32,11 @@ def render(openai_api_key):
             with ca1:
                 step2_temp_a = st.slider("Temperatura (Analiza)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_a")
             with ca2:
-                step2_tokens_a = st.number_input("Max Tokens (Analiza)", 100, 16000, 4000, key="step2_tokens_a")
+                step2_tokens_a = st.number_input("Max Tokens (Analiza)", 100, 32000, 16000, key="step2_tokens_a")
             params_a = {"model": step2_model_a, "temperature": step2_temp_a, "max_tokens": step2_tokens_a}
         else:
-            st.info("Zastosowano parametry rekomendowane: model=gpt-5.5, temp=0, reasoning_effort=medium.")
-            params_a = {"model": "gpt-5.5", "temperature": 0, "reasoning_effort": "medium"}
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.5, temp=0, max_tokens=16000, reasoning_effort=medium.")
+            params_a = {"model": "gpt-5.5", "temperature": 0, "max_tokens": 16000, "reasoning_effort": "medium"}
 
         step2_sys_a_def = """Jesteś analitykiem medyczno-kosmetycznym, strategiem contentowym i specjalistą SEO dla produktów zdrowotnych, dermokosmetycznych, kosmetycznych, OTC oraz leków bez recepty.
 
