@@ -37,12 +37,12 @@ def render(openai_api_key):
             st.warning("Ustawiasz parametry ręcznie dla każdego z 4 promptów.")
             t1p, t2p, t3p, t4p = st.tabs(["Parametry P1", "Parametry P2", "Parametry P3", "Parametry P4"])
             with t1p:
-                m1 = st.selectbox("Model P1", models_list, index=models_list.index("gpt-5.5"), key="m1")
+                m1 = st.selectbox("Model P1", models_list, index=models_list.index("gpt-5.4-mini"), key="m1")
                 t1 = st.slider("Temp P1", 0.0, 2.0, 0.0, 0.1, key="t1")
                 r1 = st.selectbox("Reasoning P1", reasoning_efforts, index=1, key="r1")
                 params_1 = {"model": m1, "temperature": t1, "max_tokens": 16000, "reasoning_effort": r1}
             with t2p:
-                m2 = st.selectbox("Model P2", models_list, index=models_list.index("gpt-5.5"), key="m2")
+                m2 = st.selectbox("Model P2", models_list, index=models_list.index("gpt-5.4-mini"), key="m2")
                 t2 = st.slider("Temp P2", 0.0, 2.0, 0.1, 0.1, key="t2")
                 r2 = st.selectbox("Reasoning P2", reasoning_efforts, index=1, key="r2")
                 params_2 = {"model": m2, "temperature": t2, "max_tokens": 16000, "reasoning_effort": r2}
