@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import requests
 import openai
+import json
 
 def render(openai_api_key):
-    st.header("Krok 2: Analiza Produktów (Jina Reader + AI)")
+    st.header("Krok 2: Analiza Produktów (Kaskada 4 Promptów)")
     
     input_mode = st.radio("Sposób wprowadzania produktów:", ["Automatycznie przez URL (Jina Reader)", "Wpisz ręcznie opisy"])
     
@@ -21,247 +22,584 @@ def render(openai_api_key):
         manual_df = st.data_editor(default_manual_df, num_rows="dynamic", use_container_width=True)
         
     with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
-        models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
+        template_all = st.radio("Szablon Ustawień:", ["Domyślny (Ręczne parametry)", "Rekomendowany (Kaskada GPT-5.5 -> GPT-5.4-mini)"], index=1, key="template_all")
         
-        st.markdown("### 📝 Prompt 1: Analiza Produktu")
-        template_a = st.radio("Szablon Ustawień (Analiza):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.5, reasoning: medium, temp: 0)"], key="template_a")
-        
-        if template_a == "Domyślny (Ręczne parametry)":
-            step2_model_a = st.selectbox("Wybierz model dla analizy:", models, index=4, key="step2_model_a")
-            ca1, ca2 = st.columns(2)
-            with ca1:
-                step2_temp_a = st.slider("Temperatura (Analiza)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_a")
-            with ca2:
-                step2_tokens_a = st.number_input("Max Tokens (Analiza)", 100, 32000, 16000, key="step2_tokens_a")
-            params_a = {"model": step2_model_a, "temperature": step2_temp_a, "max_tokens": step2_tokens_a}
+        if template_all == "Rekomendowany (Kaskada GPT-5.5 -> GPT-5.4-mini)":
+            st.info("Zastosowano kaskadę 4 promptów (wg. nowych zaleceń).")
+            params_1 = {"model": "gpt-5.5", "temperature": 0.0, "max_tokens": 16000, "reasoning_effort": "medium"}
+            params_2 = {"model": "gpt-5.5", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "medium"}
+            params_3 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
+            params_4 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
         else:
-            st.info("Zastosowano parametry rekomendowane: model=gpt-5.5, temp=0, max_tokens=16000, reasoning_effort=medium.")
-            params_a = {"model": "gpt-5.5", "temperature": 0, "max_tokens": 16000, "reasoning_effort": "medium"}
+            st.warning("Używasz tych samych parametrów rekomendowanych jako domyślnych (konfiguracja sztywna).")
+            params_1 = {"model": "gpt-5.5", "temperature": 0.0, "max_tokens": 16000, "reasoning_effort": "medium"}
+            params_2 = {"model": "gpt-5.5", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "medium"}
+            params_3 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
+            params_4 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
 
-        step2_sys_a_def = """Jesteś analitykiem medyczno-kosmetycznym, strategiem contentowym i specjalistą SEO dla produktów zdrowotnych, dermokosmetycznych, kosmetycznych, OTC oraz leków bez recepty.
+        # PROMPT 1
+        sys_1_def = """Jesteś rygorystycznym ekstraktorem danych produktowych dla produktów zdrowotnych, kosmetycznych, dermokosmetycznych, OTC, leków bez recepty i wyrobów medycznych.
 
-Twoim zadaniem nie jest tylko streszczenie treści strony. Twoim zadaniem jest zbudowanie pełnej mapy zastosowań produktu na podstawie danych ze strony oraz ostrożnych wniosków contentowych.
+Twoim zadaniem jest wyłącznie wyodrębnienie i uporządkowanie informacji podanych wprost na stronie produktu.
+
+Nie interpretuj, nie rozwijaj, nie twórz pomysłów contentowych, nie dodawaj wiedzy ogólnej i nie dopowiadaj zastosowań, których nie ma w treści.
 
 Najważniejsza zasada:
-Zanim zaczniesz interpretować produkt, MUSISZ najpierw wyodrębnić wszystkie informacje podane wprost na stronie: nazwę produktu, kategorię, status produktu, składniki, wskazania, działanie, przeciwwskazania, grupy odbiorców, sposób użycia, claimy marketingowe, ostrzeżenia i ograniczenia.
+Masz przepisać i uporządkować wszystko, co strona mówi o produkcie: na co jest, jak działa, dla kogo jest, co zawiera, jakie ma wskazania, przeciwwskazania, ostrzeżenia, claimy i ograniczenia.
 
-Nie wolno pominąć żadnego wskazania, zastosowania ani claimu, które występuje w treści strony.
-
-Zasady bezpieczeństwa i jakości:
-1. Nie wymyślaj właściwości leczniczych produktu.
-2. Oddzielaj informacje wprost podane na stronie od wniosków i hipotez contentowych.
-3. Każdy problem, wskazanie lub zastosowanie podane wprost na stronie musi znaleźć się w sekcji "wskazania_i_zastosowania".
-4. Jeżeli strona podaje kilka wskazań, przeanalizuj każde osobno.
-5. Nie sprowadzaj produktu do jednego głównego problemu, jeśli strona wymienia więcej zastosowań.
-6. Jeżeli coś wynika z wiedzy ogólnej, ale nie jest potwierdzone w treści strony, oznacz to jako "wniosek" albo "hipoteza_contentowa".
-7. Jeżeli dany temat może wymagać weryfikacji medycznej, prawnej, regulacyjnej, z ChPL, ulotką, etykietą lub działem regulatory, ustaw "wymaga_weryfikacji": true.
-8. Nie podawaj dawkowania, instrukcji leczenia ani obietnic skuteczności, jeżeli nie ma ich w treści źródłowej.
-9. Nie sugeruj stosowania produktu poza zakresem, który można racjonalnie uzasadnić opisem, składem, kategorią produktu lub informacjami ze strony.
-10. W przypadku leków, terapii, chorób przewlekłych, ciąży, niemowląt, alergii, ran, infekcji lub skóry uszkodzonej zachowaj szczególną ostrożność.
-11. Jeżeli produkt jest lekiem, komunikuj to jako istotny fakt i zachowuj większy rygor niż przy kosmetyku.
-12. Jeżeli brakuje danych, wpisz null, pustą tablicę albo "brak_danych_w_tresci".
-13. Odpowiedź musi być wyłącznie poprawnym obiektem JSON. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
-14. Pisz po polsku, precyzyjnie i konkretnie.
-
-Kontrola jakości przed odpowiedzią:
-Przed zwróceniem JSON-a sprawdź, czy wszystkie wskazania, zastosowania, składniki, przeciwwskazania i claimy podane w treści strony zostały odnotowane w odpowiednich sekcjach. Jeżeli coś zostało pominięte, uzupełnij JSON przed finalną odpowiedzią."""
-        step2_sys_a = st.text_area("System Prompt (Analiza)", value=step2_sys_a_def, height=350, key="step2_sys_a")
+Zasady:
+1. Zwróć wyłącznie poprawny JSON.
+2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+3. Nie wolno pominąć żadnego wskazania, zastosowania, problemu, choroby, objawu, claimu ani przeciwwskazania, które występuje w treści.
+4. Nie twórz wniosków. Jeżeli czegoś nie ma w treści, wpisz "brak_danych_w_tresci".
+5. Każdy ważny fakt powinien mieć pole "dokladne_brzmienie_z_tresci".
+6. Jeżeli informacja jest prawdopodobna, ale nie podana wprost, nie wpisuj jej jako fakt.
+7. Jeżeli produkt jest lekiem, OTC, kosmetykiem albo wyrobem medycznym, odnotuj to dokładnie tak, jak wynika z treści.
+8. Jeżeli strona zawiera sekcję składu, wskazań, przeciwwskazań, działania, dawkowania, ostrzeżeń lub informacji prawnych, wyodrębnij ją osobno.
+9. Nie poprawiaj języka źródła w polu "dokladne_brzmienie_z_tresci".
+10. Pisz po polsku."""
         
-        def_user_2_a = """Przeanalizuj opis produktu ze strony internetowej.
+        usr_1_def = """Przeanalizuj treść strony produktu i wyodrębnij wszystkie fakty podane wprost.
 
-Strona:
+URL:
 {url}
 
 Treść strony:
 {content}
 
-Cel analizy:
-Chcę zrozumieć produkt znacznie szerzej niż wynika to z prostego opisu na stronie. Nie interesuje mnie wyłącznie streszczenie typu "produkt pomaga na suchą skórę". Chcę odkryć pełną mapę wskazań, problemów, przyczyn, skutków, sytuacji użycia, sezonowości, grup odbiorców, kontekstów lifestyle’owych, kontekstów medyczno-kosmetycznych oraz potencjalnych tematów contentowych.
+Zadanie:
+Wyciągnij pełną, uporządkowaną listę faktów o produkcie.
 
-Bardzo ważne:
-Najpierw wyodrębnij wszystkie informacje podane wprost w treści strony. Dopiero potem wykonuj interpretację SEO i contentową.
+Szczególnie wyszukaj:
+* nazwę produktu,
+* status produktu, np. lek, lek bez recepty, OTC, kosmetyk, dermokosmetyk, wyrób medyczny,
+* kategorię i postać produktu,
+* składniki aktywne lub kluczowe,
+* stężenia, dawki lub ilości składników, jeśli są podane,
+* wszystkie wskazania,
+* wszystkie zastosowania,
+* wszystkie choroby, problemy skórne, objawy i stany wymienione na stronie,
+* działanie produktu,
+* mechanizm działania opisany na stronie,
+* informacje o dostępności, np. bez recepty,
+* grupy odbiorców,
+* przeciwwskazania,
+* ostrzeżenia,
+* działania niepożądane,
+* sposób użycia, jeśli występuje,
+* claimy marketingowe,
+* elementy wizualne lub opisy zdjęć, jeśli wynikają z treści,
+* braki w danych, które są istotne dla dalszej analizy.
 
-Nie możesz pominąć żadnego wskazania ani zastosowania produktu wymienionego na stronie.
-
-Szukaj zwłaszcza:
-* nazwy produktu,
-* kategorii produktu,
-* statusu produktu, np. lek, kosmetyk, OTC, dostępny bez recepty,
-* składników aktywnych lub kluczowych,
-* wszystkich wskazań i zastosowań wymienionych na stronie,
-* wszystkich problemów, na które produkt odpowiada,
-* wszystkich chorób, objawów i stanów skóry wymienionych w treści,
-* mechanizmu działania produktu,
-* grup odbiorców,
-* przeciwwskazań i ograniczeń,
-* claimów marketingowych,
-* danych, które mogą być ważne dla SEO, contentu i komunikacji produktowej.
-
-Następnie dla każdego wskazania lub zastosowania wykonaj osobną analizę:
-* jaki problem użytkownika reprezentuje,
-* czy produkt odpowiada na ten problem bezpośrednio czy wspierająco,
-* jakie mogą być przyczyny problemu,
-* jakie mogą być skutki i objawy,
-* jakie sytuacje życiowe mogą prowadzić do tego problemu,
-* jakie są konteksty sezonowe,
-* jakie są konteksty lifestyle’owe,
-* jakie są konteksty medyczno-kosmetyczne,
-* jakie grupy odbiorców mogą mieć ten problem,
-* jakie tematy artykułów można stworzyć,
-* jakie claimy są bezpieczne,
-* jakich claimów należy unikać.
-
-Zwróć wyłącznie poprawny JSON w poniższej strukturze:
+Zwróć wyłącznie JSON w strukturze:
 {
-"ekstrakcja_faktow_ze_strony": {
-"nazwa_produktu": "",
-"status_produktu": "lek | lek_bez_recepty | kosmetyk | dermokosmetyk | suplement | wyrob_medyczny | inny | brak_danych_w_tresci",
+"produkt": {
+"nazwa": "",
+"url": "{url}",
+"status_produktu": "lek | lek_bez_recepty | OTC | kosmetyk | dermokosmetyk | wyrob_medyczny | suplement | inny | brak_danych_w_tresci",
 "kategoria": "",
-"typ_produktu": "",
 "postac": "",
-"skladniki_aktywne_lub_kluczowe": [{"skladnik": "", "ilosc_lub_stezenie": "", "rola_w_produkcie": "", "zrodlo": "wprost_z_tresci"}],
-"substancje_pomocnicze_lub_istotne_skladniki": [],
-"wskazania_i_zastosowania_wprost": [{"wskazanie": "", "typ": "choroba | objaw | stan_skory | problem_kosmetyczny | zastosowanie | claim_marketingowy | informacja_o_dostepnosci", "dokladne_brzmienie_z_tresci": "", "czy_to_claim_medyczny": true, "poziom_pewnosci": "wysoki"}],
-"deklarowane_dzialanie_na_stronie": [{"dzialanie": "", "mechanizm_lub_opis": "", "dokladne_brzmienie_z_tresci": "", "zrodlo": "wprost_z_tresci"}],
-"grupy_docelowe_wprost": [],
-"przeciwwskazania_wprost": [],
-"ostrzezenia_lub_dzialania_niepozadane_wprost": [],
-"claimy_marketingowe_wprost": [],
-"braki_w_danych_ze_strony": []
+"typ_produktu": "",
+"czy_produkt_jest_lekiem": true,
+"czy_dostepny_bez_recepty": true,
+"dokladne_brzmienie_statusu_z_tresci": ""
 },
-"kontrola_pokrycia": {
+"sklad": {
+"skladniki_aktywne_lub_kluczowe": [
+{
+"skladnik": "",
+"ilosc_lub_stezenie": "",
+"rola_opisana_na_stronie": "",
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"inne_skladniki_istotne": [
+{
+"skladnik": "",
+"rola_lub_uwaga": "",
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"czy_sklad_podany_w_tresci": true
+},
+"wskazania_i_zastosowania": [
+{
+"nazwa": "",
+"typ": "choroba | objaw | stan_skory | problem_kosmetyczny | zastosowanie | informacja_o_dostepnosci | claim_marketingowy | inne",
+"czy_wskazanie_medyczne": true,
+"czy_podane_wprost": true,
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"dzialanie_i_mechanizm": [
+{
+"dzialanie": "",
+"mechanizm": "",
+"czego_dotyczy": "",
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"grupy_docelowe_wprost": [
+{
+"grupa": "",
+"kontekst_lub_ograniczenie": "",
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"przeciwwskazania": [
+{
+"przeciwwskazanie": "",
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"ostrzezenia_i_ograniczenia": [
+{
+"ostrzezenie_lub_ograniczenie": "",
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"dzialania_niepozadane": [
+{
+"dzialanie_niepozadane": "",
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"sposob_uzycia_lub_dawkowanie": [
+{
+"informacja": "",
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"claimy_marketingowe": [
+{
+"claim": "",
+"typ_claimu": "unikalnosc | skutecznosc | sklad | dostepnosc | bezpieczenstwo | wygoda | inne",
+"czy_claim_wymaga_weryfikacji_regulacyjnej": true,
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"elementy_wizualne_lub_kontekstowe": [
+{
+"element": "",
+"znaczenie_dla_komunikacji": "",
+"dokladne_brzmienie_z_tresci": ""
+}
+],
+"kanoniczna_lista_zastosowan_do_dalszej_analizy": [
+{
+"zastosowanie": "",
+"podstawa_w_tresci": "",
+"typ": "wskazanie | objaw | choroba | stan_skory | mechanizm | claim | grupa_docelowa | inne"
+}
+],
+"braki_w_danych": [
+{
+"brak": "",
+"dlaczego_to_istotne": ""
+}
+],
+"kontrola_jakosci": {
 "liczba_wykrytych_wskazan_i_zastosowan": 0,
-"czy_kazde_wskazanie_ma_osobna_analize": true,
-"pominiete_elementy_z_tresci": [],
-"uwagi_do_jakosci_ekstrakcji": ""
-},
-"profil_produktu": {
+"czy_wszystkie_wskazania_maja_cytat_z_tresci": true,
+"czy_odnaleziono_sklad": true,
+"czy_odnaleziono_dzialanie": true,
+"czy_odnaleziono_przeciwwskazania": true,
+"uwagi": ""
+}
+}"""
+
+        # PROMPT 2
+        sys_2_def = """Jesteś analitykiem medyczno-kosmetycznym, strategiem SEO, product managerem i strategiem contentowym.
+
+Twoim zadaniem jest wykonanie rozszerzonej analizy produktu na podstawie uporządkowanych faktów z poprzedniego kroku.
+
+Nie analizujesz już surowej strony. Analizujesz skonsolidowane fakty o produkcie.
+
+Cel:
+Masz zbudować pełną mapę zastosowań produktu, przyczyn problemów, skutków, grup odbiorców, sezonowości, kontekstów lifestyle’owych, kontekstów medyczno-kosmetycznych oraz szans contentowych.
+
+Zasady:
+1. Zwróć wyłącznie poprawny JSON.
+2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+3. Każde zastosowanie z "kanoniczna_lista_zastosowan_do_dalszej_analizy" musi zostać przeanalizowane osobno.
+4. Nie pomijaj żadnego wskazania ani zastosowania z poprzedniego kroku.
+5. Oddzielaj zastosowania podane wprost od wniosków i hipotez contentowych.
+6. Nie sugeruj leczenia problemów, których produkt nie leczy według danych źródłowych.
+7. Jeżeli produkt łagodzi objawy albo wspiera regenerację, nie zmieniaj tego w claim "leczy chorobę".
+8. Jeżeli analizujesz chorobę, leczenie, dzieci, niemowlęta, ciążę, rany, infekcje, alergie, łuszczycę, wyprysk lub inne stany medyczne, ustaw "wymaga_weryfikacji": true.
+9. Jeżeli wniosek wynika z ogólnej logiki, ale nie z treści strony, oznacz go jako "wniosek".
+10. Jeżeli temat jest pomysłem contentowym wykraczającym poza treść, oznacz go jako "hipoteza_contentowa".
+11. Pisz konkretnie, praktycznie i pod kątem późniejszego SEO."""
+        
+        usr_2_def = """Wykonaj rozszerzoną analizę produktu na podstawie skonsolidowanych faktów z poprzedniego kroku.
+
+Dane wejściowe:
+{product_facts_json}
+
+Cel analizy:
+Chcę wiedzieć, do jakich problemów, sytuacji, grup odbiorców i tematów contentowych można bezpiecznie dopasować produkt.
+
+Nie chcę tylko listy wskazań. Chcę pełen związek przyczynowo-skutkowy:
+problem → przyczyna → objaw/skutek → sytuacja życiowa → grupa odbiorców → rola produktu → bezpieczny temat contentowy.
+
+Zwróć uwagę na:
+* każde wskazanie z produktu,
+* przyczyny każdego problemu,
+* skutki i objawy,
+* sezonowość,
+* sport i aktywność,
+* pracę fizyczną,
+* podróże,
+* pielęgnację codzienną,
+* dzieci, dorosłych, seniorów i inne grupy,
+* leczenie lub terapie, które mogą powodować problemy wtórne,
+* konteksty, gdzie produkt może być wsparciem, ale nie rozwiązaniem problemu pierwotnego,
+* ryzykowne claimy,
+* bezpieczne kierunki komunikacji,
+* tematy artykułów,
+* zdjęcia, grafiki i sekcje na stronie.
+
+Zwróć wyłącznie JSON w strukturze:
+{
+"profil_strategiczny_produktu": {
 "krotki_opis": "",
 "glowna_rola_produktu": "",
+"najwazniejsze_obszary_zastosowan": [],
 "czy_produkt_ma_wiele_zastosowan": true,
-"najwazniejsze_obszary_zastosowan": []
+"najwazniejsze_ograniczenie_komunikacyjne": "",
+"najwieksza_szansa_contentowa": ""
 },
-"analiza_wskazan_i_zastosowan": [
+"analiza_zastosowan": [
 {
-"wskazanie_lub_zastosowanie": "",
-"status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa",
-"typ_problemu": "medyczny | kosmetyczny | pielegnacyjny | lifestyle | sezonowy | mieszany",
-"opis_problemu": "",
-"jak_produkt_laczy_sie_z_problemem_wedlug_tresci": "",
-"czy_produkt_rozwiazuje_problem_bezposrednio": true,
-"czy_produkt_moze_byc_wsparciem": true,
-"mechanizm_dzialania_powiazany_z_tym_wskazaniem": "",
-"przyczyny_problemu": [{"przyczyna": "", "mechanizm_lub_logika": "", "czy_podana_w_tresci": true, "status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa", "poziom_pewnosci": "wysoki | sredni | niski"}],
-"skutki_i_objawy": [{"objaw_lub_skutek": "", "jak_laczy_sie_z_problemem": "", "czy_podany_w_tresci": true, "czy_mozna_komunikowac_wprost": true, "ryzyko_naduzycia_claimu": "niskie | srednie | wysokie"}],
-"konteksty_sezonowe": [{"kontekst": "", "pora_roku_lub_warunki": "", "dlaczego_to_ma_znaczenie": "", "status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa", "wymaga_weryfikacji": true}],
-"konteksty_lifestyle": [{"sytuacja_lub_aktywnosc": "", "dlaczego_moze_powodowac_problem": "", "jak_polaczyc_z_produktem": "", "status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa", "wymaga_weryfikacji": true}],
-"konteksty_medyczno_kosmetyczne": [{"problem_pierwotny": "", "problem_wtorny": "", "zwiazek_przyczynowo_skutkowy": "", "rola_produktu": "", "czego_nie_sugerowac": "", "status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa", "wymaga_weryfikacji": true}],
-"grupy_docelowe": [{"grupa": "", "dlaczego_moze_dotyczyc_tej_grupy": "", "czy_grupa_podana_w_tresci": true, "typowe_sytuacje": [], "potencjalne_obawy": [], "wymaga_weryfikacji": true}],
+"zastosowanie": "",
+"podstawa_zrodlowa": "wprost_z_tresci | wniosek | hipoteza_contentowa",
+"typ": "choroba | objaw | stan_skory | problem_kosmetyczny | zastosowanie | mechanizm | claim | inne",
+"problem_uzytkownika": "",
+"czy_produkt_odpowiada_bezposrednio": true,
+"czy_produkt_jest_wsparciem": true,
+"rola_produktu": "",
+"mechanizm_powiazany_z_produktem": "",
+"przyczyny": [
+{
+"przyczyna": "",
+"mechanizm_przyczynowo_skutkowy": "",
+"przyklad_sytuacji": "",
+"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
+"poziom_pewnosci": "wysoki | sredni | niski"
+}
+],
+"objawy_i_skutki": [
+{
+"objaw_lub_skutek": "",
+"dlaczego_wystepuje": "",
+"jak_laczy_sie_z_produktem": "",
+"czy_mozna_komunikowac_wprost": true,
+"ryzyko_claimu": "niskie | srednie | wysokie"
+}
+],
+"grupy_odbiorcow": [
+{
+"grupa": "",
+"dlaczego_dotyczy_tej_grupy": "",
+"typowe_sytuacje": [],
+"potrzeby_i_obawy": [],
+"bezpieczny_komunikat": "",
+"czego_nie_sugerowac": "",
+"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
+"wymaga_weryfikacji": true
+}
+],
+"konteksty_sezonowe": [
+{
+"kontekst": "",
+"pora_roku_lub_warunki": "",
+"problem": "",
+"jak_polaczyc_z_produktem": "",
+"pomysl_na_content": "",
+"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
+"wymaga_weryfikacji": true
+}
+],
+"konteksty_lifestyle": [
+{
+"kontekst": "",
+"sytuacja_lub_aktywnosc": "",
+"problem": "",
+"jak_polaczyc_z_produktem": "",
+"pomysl_na_content": "",
+"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
+"wymaga_weryfikacji": true
+}
+],
+"konteksty_medyczno_kosmetyczne": [
+{
+"problem_pierwotny": "",
+"problem_wtorny": "",
+"zwiazek_przyczynowo_skutkowy": "",
+"rola_produktu": "",
+"bezpieczne_zawężenie_tematu": "",
+"czego_nie_sugerowac": "",
+"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
+"wymaga_weryfikacji": true
+}
+],
 "claimy_bezpieczne": [],
 "claimy_ryzykowne_lub_do_unikania": [],
-"pomysly_na_content": [{"temat": "", "proponowany_tytul": "", "proponowany_h1": "", "intencja": "informacyjna | poradnikowa | produktowa | problemowa | sezonowa | porownawcza", "sekcje_artykulu": [], "jak_naturalnie_polaczyc_z_produktem": "", "pomysl_na_zdjecie_lub_grafike": "", "priorytet": "wysoki | sredni | niski", "uzasadnienie_priorytetu": ""}],
+"tematy_contentowe": [
+{
+"temat": "",
+"proponowany_tytul": "",
+"proponowany_h1": "",
+"intencja": "informacyjna | poradnikowa | problemowa | sezonowa | produktowa | porownawcza",
+"sekcje_artykulu": [],
+"jak_naturalnie_polaczyc_z_produktem": "",
+"pomysl_na_zdjecie_lub_grafike": "",
+"priorytet": "wysoki | sredni | niski",
+"uzasadnienie": ""
+}
+],
 "poziom_pewnosci": "wysoki | sredni | niski",
 "wymaga_weryfikacji": true
 }
 ],
-"problemy_powiazane_niepodane_wprost": [{"problem": "", "opis": "", "relacja_do_produktu": "", "dlaczego_to_nie_jest_wskazanie_wprost": "", "czy_mozna_rozwazac_jako_temat_contentowy": true, "czego_nie_wolno_sugerowac": "", "poziom_pewnosci": "wysoki | sredni | niski", "zrodlo": "wniosek | hipoteza_contentowa", "wymaga_weryfikacji": true}],
-"mapa_contentowa": [{"temat": "", "powiazane_wskazanie_lub_problem": "", "intencja_uzytkownika": "informacyjna | poradnikowa | produktowa | porownawcza | sezonowa | problemowa", "przyczyna_lub_kontekst": "", "proponowany_tytul_artykulu": "", "proponowany_h1": "", "sekcje_artykulu": [], "pomysl_na_zdjecie": "", "jak_naturalnie_polaczyc_z_produktem": "", "claimy_bezpieczne": [], "claimy_ryzykowne": [], "priorytet": "wysoki | sredni | niski", "uzasadnienie_priorytetu": ""}],
-"nietypowe_insighty": [{"insight": "", "powiazane_wskazanie_lub_problem": "", "dlaczego_nie_jest_oczywisty": "", "jak_moze_pomoc_w_seo_lub_content_marketingu": "", "przyklad_wykorzystania": "", "poziom_pewnosci": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
-"luki_na_stronie": [{"luka": "", "powiazane_wskazanie_lub_problem": "", "dlaczego_to_problem": "", "co_dodac_na_stronie": "", "typ_materialu": "tekst | artykul | FAQ | zdjecie | grafika | sekcja_produktowa | ostrzezenie | linkowanie_wewnetrzne", "priorytet": "wysoki | sredni | niski"}],
-"faq": [{"pytanie": "", "powiazane_wskazanie_lub_problem": "", "bezpieczna_odpowiedz": "", "czy_wymaga_konsultacji_z_ekspertem": true}],
-"slowa_kluczowe_i_encje": {"wskazania": [], "problemy": [], "objawy": [], "przyczyny": [], "grupy_docelowe": [], "sytuacje_uzycia": [], "sezonowosc": [], "skladniki": [], "tematy_powiazane": []},
-"ograniczenia_i_przeciwwskazania": {"wprost_z_tresci": [], "potencjalne_do_weryfikacji": [], "grupy_wymagajace_ostroznosci": [], "czego_brakuje_w_tresci_strony": [], "czego_nie_wolno_komunikowac_bez_weryfikacji": []},
-"rekomendacje_dla_brand_managera": [{"rekomendacja": "", "powiazane_wskazanie_lub_problem": "", "uzasadnienie": "", "oczekiwany_efekt": "", "priorytet": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
+"mapa_grup_odbiorcow": [
+{
+"grupa": "",
+"problemy": [],
+"sytuacje_wyzwalajace_problem": [],
+"potrzeby": [],
+"obawy": [],
+"najlepszy_kierunek_contentu": "",
+"powiazane_zastosowania_produktu": [],
+"priorytet": "wysoki | sredni | niski"
+}
+],
+"nietypowe_insighty": [
+{
+"insight": "",
+"dlaczego_nie_jest_oczywisty": "",
+"zwiazek_przyczynowo_skutkowy": "",
+"jak_wykorzystac_w_seo": "",
+"przykladowy_temat": "",
+"powiazane_zastosowanie": "",
+"poziom_pewnosci": "wysoki | sredni | niski",
+"wymaga_weryfikacji": true
+}
+],
+"luki_i_szanse_na_stronie": [
+{
+"luka_lub_szansa": "",
+"powiazane_zastosowanie": "",
+"dlaczego_to_wazne": "",
+"co_dodac": "",
+"typ_materialu": "sekcja_produktowa | artykul | FAQ | grafika | zdjecie | tabela | linkowanie_wewnetrzne | ostrzezenie | inne",
+"priorytet": "wysoki | sredni | niski"
+}
+],
+"bezpieczne_ramowanie_komunikacji": {
+"mozna_komunikowac": [],
+"komunikowac_ostroznie": [],
+"nie_komunikowac_bez_weryfikacji": [],
+"wymaga_sprawdzenia_z_regulatory_lub_ekspertem": []
+},
 "podsumowanie": {
 "najwazniejszy_wniosek": "",
-"najwazniejsze_wskazania_ze_strony": [],
-"najwieksza_szansa_contentowa": "",
-"najwieksze_ryzyko_komunikacyjne": "",
+"najlepsze_grupy_odbiorcow": [],
+"najlepsze_konteksty_contentowe": [],
+"najwieksze_ryzyko": "",
 "co_sprawdzic_przed_publikacja": []
 }
 }"""
-        step2_user_a = st.text_area("User Prompt (Analiza)", value=def_user_2_a, height=350, key="step2_user_a")
-        
-        st.markdown("---")
-        st.markdown("### 🔍 Prompt 2: Generowanie Fraz SEO")
-        
-        template_b = st.radio("Szablon Ustawień (Frazy):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: low, temp: 0.1)"], key="template_b")
-        if template_b == "Domyślny (Ręczne parametry)":
-            step2_model_b = st.selectbox("Wybierz model dla fraz SEO:", models, index=0, key="step2_model_b")
-            cb1, cb2 = st.columns(2)
-            with cb1:
-                step2_temp_b = st.slider("Temperatura (Frazy SEO)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_b")
-            with cb2:
-                step2_tokens_b = st.number_input("Max Tokens (Frazy SEO)", 100, 16000, 4000, key="step2_tokens_b")
-            params_b = {"model": step2_model_b, "temperature": step2_temp_b, "max_tokens": step2_tokens_b}
-        else:
-            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=low.")
-            params_b = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "low"}
-            
-        step2_sys_b_def = """Jesteś ekspertem SEO specjalizującym się w analizie produktów medycznych, kosmetycznych, dermokosmetycznych i OTC.
 
-Twoim zadaniem jest wygenerowanie listy seed keywords, czyli podstawowych fraz SEO opisujących produkt, jego główne zastosowania, problemy użytkownika oraz najważniejsze konteksty użycia.
+        # PROMPT 3
+        sys_3_def = """Jesteś ekspertem SEO specjalizującym się w produktach zdrowotnych, medycznych, kosmetycznych, dermokosmetycznych, OTC i lekach bez recepty.
 
-Nie generuj gotowych tytułów artykułów. Seed keyword ma być krótką frazą bazową, która może służyć później do dalszej analizy słów kluczowych.
+Twoim zadaniem jest wygenerowanie seed keywords wyłącznie na podstawie faktów podanych wprost na stronie produktu.
 
-Zasady:
-1. Zwróć wyłącznie poprawny obiekt JSON.
-2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
-3. Wygeneruj maksymalnie 30 fraz.
-4. Każda fraza ma mieć od 1 do 4 słów.
-5. Frazy mają być po polsku.
-6. Frazy mają być w mianowniku, o ile pozwala na to naturalny język polski.
-7. Dopuszczalne są naturalne konstrukcje typu "regeneracja skóry", "sucha skóra", "podrażniona skóra", "otarcia po bieganiu".
-8. Nie generuj fraz zbyt ogólnych, np. "skóra", "krem", "zdrowie", jeżeli nie są kluczowe dla produktu.
-9. Nie generuj zbyt długich long-taili, np. "co stosować na suchą skórę zimą".
-10. Nie powielaj podobnych wariantów tej samej frazy, np. "sucha skóra" i "skóra sucha" — wybierz naturalniejszą.
-11. Nie dodawaj nazw chorób, terapii ani zastosowań, których nie można bezpiecznie powiązać z produktem.
-12. Jeżeli produkt nie leczy danego problemu bezpośrednio, ale może być powiązany z jego skutkiem, wybierz frazę dotyczącą skutku, nie choroby pierwotnej.
-13. Przykład: jeśli terapia przeciwtrądzikowa może wysuszać skórę, nie wybieraj frazy "trądzik", tylko "sucha skóra", "przesuszona skóra" albo "regeneracja skóry".
-14. Priorytetyzuj frazy, które najlepiej opisują realne zastosowanie produktu i mogą mieć potencjał SEO.
-15. Kolejność fraz ma oznaczać priorytet — od najważniejszej do najmniej ważnej.
-16. Lista powinna zawierać różne typy fraz: problemowe, produktowe, zastosowania, objawy, sezonowe, lifestyle’owe i grupy odbiorców.
-17. Nie twórz fraz wyłącznie po to, żeby dobić do 30. Jeżeli sensownych fraz jest mniej, zwróć mniej."""
-        step2_sys_b = st.text_area("System Prompt (Frazy SEO)", value=step2_sys_b_def, height=250, key="step2_sys_b")
-        
-        def_user_2_b = """Wygeneruj seed keywords SEO dla produktu na podstawie treści strony oraz wcześniejszej analizy produktu.
-
-Strona:
-{url}
-
-Treść strony:
-{content}
-
-Analiza produktu:
-{product_analysis_json}
+Nie korzystasz z rozszerzonych hipotez contentowych. Nie rozwijasz tematów sezonowych ani lifestyle’owych, jeśli nie wynikają z faktów produktu.
 
 Cel:
-Chcę otrzymać maksymalnie 30 najważniejszych fraz SEO, które najlepiej opisują:
-* główny problem rozwiązywany przez produkt,
-* problemy powiązane,
-* zastosowania produktu,
-* objawy lub skutki, na które produkt może odpowiadać,
-* konteksty sezonowe,
-* konteksty lifestyle’owe,
-* konteksty medyczno-kosmetyczne,
-* grupy odbiorców, jeżeli są istotne,
-* bezpieczne i zgodne z treścią strony zastosowania produktu.
+Wygeneruj krótkie, bazowe frazy SEO opisujące to, co produkt ma wpisane na stronie: wskazania, zastosowania, działanie, składniki, typ produktu, status produktu i najważniejsze problemy użytkownika.
 
-Nie wybieraj fraz tylko dlatego, że występują w treści strony. Wybieraj frazy, które najlepiej oddają intencję użytkownika i realne zastosowanie produktu.
+Zasady:
+1. Zwróć wyłącznie poprawny JSON.
+2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+3. Wygeneruj maksymalnie {max_keywords} fraz.
+4. Jeśli {max_keywords} nie jest podane, wygeneruj maksymalnie 30 fraz.
+5. Każda fraza ma mieć od 1 do 4 słów.
+6. Frazy mają być po polsku.
+7. Frazy mają być naturalne językowo i możliwe do użycia jako seed keywords.
+8. Nie twórz long-taili ani tytułów artykułów.
+9. Nie dodawaj fraz, które nie wynikają z faktów produktu.
+10. Nie powielaj podobnych wariantów tej samej frazy.
+11. Jeżeli wskazanie dotyczy łagodzenia objawów choroby, nie zmieniaj tego w frazę sugerującą leczenie choroby.
+12. Priorytetyzuj frazy najbliższe produktowi i wskazaniom ze strony.
+13. Kolejność fraz ma oznaczać priorytet."""
+        
+        usr_3_def = """Wygeneruj seed keywords SEO na podstawie faktów wyodrębnionych ze strony produktu.
 
-Nie generuj fraz, które sugerują działanie produktu niepotwierdzone w treści lub wymagające weryfikacji medycznej/regulacyjnej.
+Dane wejściowe:
+{product_facts_json}
 
-Zwróć wyłącznie JSON w strukturze:
+Limit fraz:
+{max_keywords}
+
+Cel:
+Chcę otrzymać listę fraz bazowych, które wynikają bezpośrednio z treści strony produktu.
+
+Uwzględnij:
+* wskazania,
+* zastosowania,
+* problemy skórne,
+* objawy,
+* mechanizm działania,
+* składniki,
+* typ produktu,
+* status produktu,
+* grupy odbiorców, jeśli są podane wprost.
+
+Nie uwzględniaj:
+* hipotez contentowych,
+* sezonowości niepodanej na stronie,
+* aktywności lifestyle’owych niepodanych na stronie,
+* terapii lub chorób, których nie ma w faktach,
+* fraz sugerujących niepotwierdzone działanie.
+
+Zwróć wyłącznie JSON:
 {
 "seed_keywords": [
 "fraza 1",
 "fraza 2",
 "fraza 3"
+],
+"keyword_details": [
+{
+"fraza": "",
+"typ": "wskazanie | objaw | choroba | stan_skory | mechanizm | skladnik | typ_produktu | status | grupa_docelowa | inne",
+"podstawa_w_faktach": "",
+"priorytet": "wysoki | sredni | niski",
+"czy_wymaga_ostroznej_komunikacji": true
+}
+],
+"odrzucone_pomysly": [
+{
+"fraza": "",
+"powod_odrzucenia": ""
+}
 ]
 }"""
-        step2_user_b = st.text_area("User Prompt (Frazy SEO)", value=def_user_2_b, height=350, key="step2_user_b")
+
+        # PROMPT 4
+        sys_4_def = """Jesteś ekspertem SEO, strategiem contentowym i analitykiem intencji użytkownika dla produktów zdrowotnych, medycznych, kosmetycznych, dermokosmetycznych, OTC i leków bez recepty.
+
+Twoim zadaniem jest wygenerowanie seed keywords na podstawie rozszerzonej analizy produktu: zastosowań, przyczyn, skutków, grup odbiorców, sezonowości, kontekstów lifestyle’owych i medyczno-kosmetycznych.
+
+To nie są frazy wyłącznie z karty produktu. To są frazy do dalszej analizy SEO, content gap i planowania artykułów.
+
+Zasady:
+1. Zwróć wyłącznie poprawny JSON.
+2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+3. Wygeneruj maksymalnie {max_keywords} fraz.
+4. Jeśli {max_keywords} nie jest podane, wygeneruj maksymalnie 50 fraz.
+5. Każda fraza ma mieć od 1 do 5 słów.
+6. Frazy mają być po polsku.
+7. Frazy mają być naturalne językowo.
+8. Dopuszczalne są krótkie frazy problemowe, sezonowe, lifestyle’owe i poradnikowe.
+9. Nie generuj pełnych tytułów artykułów.
+10. Nie generuj fraz zbyt ogólnych, np. "skóra", "zdrowie", "leczenie".
+11. Nie sugeruj działania produktu, którego nie da się bezpiecznie uzasadnić.
+12. Jeżeli produkt wspiera skutek problemu, a nie problem pierwotny, fraza powinna dotyczyć skutku, nie leczenia problemu pierwotnego.
+13. Przykład: jeśli kontekst dotyczy terapii przeciwtrądzikowej powodującej suchość skóry, wybierz "sucha skóra po kuracji", a nie "lek na trądzik".
+14. Rozdziel frazy według typu: problemowe, objawowe, sezonowe, lifestyle, grupa odbiorców, mechanizm, contentowe.
+15. Kolejność fraz ma oznaczać priorytet."""
         
-    if st.button("Rozpocznij Analizę", type="primary"):
+        usr_4_def = """Wygeneruj seed keywords SEO na podstawie rozszerzonej analizy produktu.
+
+Dane wejściowe:
+{expanded_product_analysis_json}
+
+Opcjonalnie fakty źródłowe produktu:
+{product_facts_json}
+
+Limit fraz:
+{max_keywords}
+
+Cel:
+Chcę otrzymać szerszą listę fraz SEO, które wynikają z analizy zastosowań produktu, związków przyczynowo-skutkowych, sezonowości, grup odbiorców i kontekstów użycia.
+
+Uwzględnij:
+* problemy użytkownika,
+* objawy i skutki,
+* przyczyny problemów,
+* sytuacje życiowe,
+* sezonowość,
+* sport i aktywność,
+* pracę fizyczną,
+* podróże,
+* codzienną pielęgnację,
+* grupy odbiorców,
+* konteksty medyczno-kosmetyczne,
+* tematy, które można bezpiecznie rozwijać contentowo.
+
+Nie generuj fraz, które:
+* sugerują leczenie niepotwierdzone w danych,
+* są zbyt ryzykowne medycznie,
+* są zbyt szerokie,
+* są pełnymi tytułami artykułów,
+* powielają istniejące frazy w innej kolejności słów.
+
+Zwróć wyłącznie JSON:
+{
+"seed_keywords": [
+"fraza 1",
+"fraza 2",
+"fraza 3"
+],
+"keyword_groups": {
+"problemowe": [],
+"objawowe": [],
+"sezonowe": [],
+"lifestyle": [],
+"grupy_odbiorcow": [],
+"medyczno_kosmetyczne": [],
+"mechanizm_dzialania": [],
+"contentowe": []
+},
+"keyword_details": [
+{
+"fraza": "",
+"typ": "problemowa | objawowa | sezonowa | lifestyle | grupa_odbiorcow | medyczno_kosmetyczna | mechanizm | contentowa",
+"powiazane_zastosowanie": "",
+"podstawa": "wprost_z_tresci | wniosek | hipoteza_contentowa",
+"intencja": "informacyjna | poradnikowa | problemowa | produktowa | sezonowa | porownawcza",
+"priorytet": "wysoki | sredni | niski",
+"ryzyko_claimu": "niskie | srednie | wysokie",
+"uwaga_komunikacyjna": ""
+}
+],
+"frazy_odrzucone": [
+{
+"fraza": "",
+"powod_odrzucenia": ""
+}
+]
+}"""
+
+        t1, t2, t3, t4 = st.tabs(["1. Ekstrakcja", "2. Rozszerzona", "3. Frazy z Faktów", "4. Frazy z Analizy"])
+        with t1:
+            step2_sys_1 = st.text_area("System (P1)", value=sys_1_def, height=200, key="s1")
+            step2_user_1 = st.text_area("User (P1)", value=usr_1_def, height=200, key="u1")
+        with t2:
+            step2_sys_2 = st.text_area("System (P2)", value=sys_2_def, height=200, key="s2")
+            step2_user_2 = st.text_area("User (P2)", value=usr_2_def, height=200, key="u2")
+        with t3:
+            step2_sys_3 = st.text_area("System (P3)", value=sys_3_def, height=200, key="s3")
+            step2_user_3 = st.text_area("User (P3)", value=usr_3_def, height=200, key="u3")
+        with t4:
+            step2_sys_4 = st.text_area("System (P4)", value=sys_4_def, height=200, key="s4")
+            step2_user_4 = st.text_area("User (P4)", value=usr_4_def, height=200, key="u4")
+
+    if st.button("Rozpocznij Kaskadę 4 Promptów", type="primary"):
         if not openai_api_key:
             st.error("Wymagany klucz API OpenAI.")
         else:
@@ -286,6 +624,7 @@ Zwróć wyłącznie JSON w strukturze:
             
             progress_text = "Analiza produktów w toku..."
             my_bar = st.progress(0, text=progress_text)
+            client = openai.OpenAI(api_key=openai_api_key)
             
             for idx, item in enumerate(items_to_analyze):
                 url = item["url"]
@@ -294,10 +633,8 @@ Zwróć wyłącznie JSON w strukturze:
                 try:
                     if content is None:
                         headers = {"Accept": "application/json"}
-                        
                         if st.session_state.get("jina_api_key"):
                             headers["Authorization"] = f"Bearer {st.session_state.jina_api_key}"
-                            
                         if scrape_mode == "Pomiń cache (X-No-Cache)":
                             headers["X-No-Cache"] = "true"
                         if css_include:
@@ -312,107 +649,88 @@ Zwróć wyłącznie JSON w strukturze:
                             continue
                         
                     if content:
-                        client = openai.OpenAI(api_key=openai_api_key)
+                        content_clipped = content[:8000]
                         
-                        # Call 1
-                        prompt_a = step2_user_a.replace("{url}", url).replace("{content}", content[:4000])
+                        # --- PROMPT 1 ---
+                        prompt_1 = step2_user_1.replace("{url}", url).replace("{content}", content_clipped)
+                        call_1_kwargs = {"model": params_1["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_1}, {"role": "user", "content": prompt_1}]}
+                        if "temperature" in params_1: call_1_kwargs["temperature"] = params_1["temperature"]
+                        if "max_tokens" in params_1: call_1_kwargs["max_tokens"] = params_1["max_tokens"]
+                        if "reasoning_effort" in params_1: call_1_kwargs["reasoning_effort"] = params_1["reasoning_effort"]
+                        r1 = client.chat.completions.create(**call_1_kwargs).choices[0].message.content
                         
-                        call_a_kwargs = {
-                            "model": params_a["model"],
-                            "response_format": { "type": "json_object" },
-                            "messages": [
-                                {"role": "system", "content": step2_sys_a},
-                                {"role": "user", "content": prompt_a}
-                            ]
-                        }
-                        if "temperature" in params_a: call_a_kwargs["temperature"] = params_a["temperature"]
-                        if "max_tokens" in params_a: call_a_kwargs["max_tokens"] = params_a["max_tokens"]
-                        if "top_p" in params_a: call_a_kwargs["top_p"] = params_a["top_p"]
-                        if "seed" in params_a: call_a_kwargs["seed"] = params_a["seed"]
-                        if "reasoning_effort" in params_a:
-                            # Note: OpenAi's Python SDK supports reasoning_effort for o-series models.
-                            call_a_kwargs["reasoning_effort"] = params_a["reasoning_effort"]
-                            
-                        ai_response_a = client.chat.completions.create(**call_a_kwargs)
-                        result_a = ai_response_a.choices[0].message.content
+                        # --- PROMPT 2 ---
+                        prompt_2 = step2_user_2.replace("{product_facts_json}", r1)
+                        call_2_kwargs = {"model": params_2["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_2}, {"role": "user", "content": prompt_2}]}
+                        if "temperature" in params_2: call_2_kwargs["temperature"] = params_2["temperature"]
+                        if "max_tokens" in params_2: call_2_kwargs["max_tokens"] = params_2["max_tokens"]
+                        if "reasoning_effort" in params_2: call_2_kwargs["reasoning_effort"] = params_2["reasoning_effort"]
+                        r2 = client.chat.completions.create(**call_2_kwargs).choices[0].message.content
                         
-                        # Call 2
-                        prompt_b = step2_user_b.replace("{url}", url).replace("{content}", content[:4000]).replace("{product_analysis_json}", result_a)
+                        # --- PROMPT 3 ---
+                        prompt_3 = step2_user_3.replace("{product_facts_json}", r1).replace("{max_keywords}", "30")
+                        call_3_kwargs = {"model": params_3["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_3}, {"role": "user", "content": prompt_3}]}
+                        if "temperature" in params_3: call_3_kwargs["temperature"] = params_3["temperature"]
+                        if "max_tokens" in params_3: call_3_kwargs["max_tokens"] = params_3["max_tokens"]
+                        if "reasoning_effort" in params_3: call_3_kwargs["reasoning_effort"] = params_3["reasoning_effort"]
+                        r3 = client.chat.completions.create(**call_3_kwargs).choices[0].message.content
                         
-                        call_b_kwargs = {
-                            "model": params_b["model"],
-                            "response_format": { "type": "json_object" },
-                            "messages": [
-                                {"role": "system", "content": step2_sys_b},
-                                {"role": "user", "content": prompt_b}
-                            ]
-                        }
-                        if "temperature" in params_b: call_b_kwargs["temperature"] = params_b["temperature"]
-                        if "max_tokens" in params_b: call_b_kwargs["max_tokens"] = params_b["max_tokens"]
-                        if "reasoning_effort" in params_b: call_b_kwargs["reasoning_effort"] = params_b["reasoning_effort"]
-                            
-                        ai_response_b = client.chat.completions.create(**call_b_kwargs)
-                        result_b = ai_response_b.choices[0].message.content
+                        # --- PROMPT 4 ---
+                        prompt_4 = step2_user_4.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2).replace("{max_keywords}", "50")
+                        call_4_kwargs = {"model": params_4["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_4}, {"role": "user", "content": prompt_4}]}
+                        if "temperature" in params_4: call_4_kwargs["temperature"] = params_4["temperature"]
+                        if "max_tokens" in params_4: call_4_kwargs["max_tokens"] = params_4["max_tokens"]
+                        if "reasoning_effort" in params_4: call_4_kwargs["reasoning_effort"] = params_4["reasoning_effort"]
+                        r4 = client.chat.completions.create(**call_4_kwargs).choices[0].message.content
                         
-                        import json
                         try:
-                            data_a = json.loads(result_a)
+                            d1 = json.loads(r1)
+                            d2 = json.loads(r2)
+                            d3 = json.loads(r3)
+                            d4 = json.loads(r4)
+                            
+                            phrases_3 = [str(x).strip().lower() for x in d3.get("seed_keywords", [])]
+                            phrases_4 = [str(x).strip().lower() for x in d4.get("seed_keywords", [])]
+                            combined_phrases = list(dict.fromkeys(phrases_3 + phrases_4))
                             
                             md_lines = []
-                            if "podsumowanie" in data_a:
-                                p = data_a["podsumowanie"]
-                                md_lines.append("### 🎯 Podsumowanie")
-                                md_lines.append(f"- **Najważniejszy wniosek:** {p.get('najwazniejszy_wniosek', '')}")
-                                md_lines.append(f"- **Wskazania ze strony:** {', '.join(p.get('najwazniejsze_wskazania_ze_strony', []))}")
-                                md_lines.append(f"- **Szansa contentowa:** {p.get('najwieksza_szansa_contentowa', '')}")
-                                md_lines.append(f"- **Ryzyko komunikacyjne:** {p.get('najwieksze_ryzyko_komunikacyjne', '')}")
+                            if "produkt" in d1:
+                                md_lines.append("### 🏷 Fakty wyodrębnione z treści (P1)")
+                                p1 = d1["produkt"]
+                                md_lines.append(f"- **Nazwa:** {p1.get('nazwa', '')} | **Status:** {p1.get('status_produktu', '')} | **Kategoria:** {p1.get('kategoria', '')}")
+                                md_lines.append(f"- **Wskazania wprost:** " + ", ".join([w.get('nazwa', '') for w in d1.get('wskazania_i_zastosowania', []) if isinstance(w, dict)]))
+                                md_lines.append("")
+                            
+                            if "podsumowanie" in d2:
+                                p2 = d2["podsumowanie"]
+                                md_lines.append("### 🎯 Analiza Rozszerzona (P2)")
+                                md_lines.append(f"- **Wniosek:** {p2.get('najwazniejszy_wniosek', '')}")
+                                md_lines.append(f"- **Szansa contentowa:** {d2.get('profil_strategiczny_produktu', {}).get('najwieksza_szansa_contentowa', '')}")
+                                md_lines.append(f"- **Ryzyko:** {p2.get('najwieksze_ryzyko', '')}")
                                 md_lines.append("")
                                 
-                            if "ekstrakcja_faktow_ze_strony" in data_a:
-                                ex = data_a["ekstrakcja_faktow_ze_strony"]
-                                md_lines.append("### 🏷 Fakty wyodrębnione z treści")
-                                md_lines.append(f"- **Nazwa:** {ex.get('nazwa_produktu', '')} | **Status:** {ex.get('status_produktu', '')} | **Kategoria:** {ex.get('kategoria', '')}")
-                                md_lines.append(f"- **Wskazania wprost:** " + ", ".join([w.get('wskazanie', '') for w in ex.get('wskazania_i_zastosowania_wprost', []) if isinstance(w, dict)]))
-                                md_lines.append("")
-                                
-                            if "analiza_wskazan_i_zastosowan" in data_a and isinstance(data_a["analiza_wskazan_i_zastosowan"], list):
-                                md_lines.append("### 🔍 Przykładowe Zastosowania i Konteksty")
-                                for a in data_a["analiza_wskazan_i_zastosowan"][:3]:
-                                    if isinstance(a, dict):
-                                        md_lines.append(f"**{a.get('wskazanie_lub_zastosowanie', '')}** (Status źródła: {a.get('status_zrodla', '')})")
-                                        if a.get('konteksty_sezonowe'):
-                                            md_lines.append(f"- Sezonowe: {', '.join([k.get('kontekst','') for k in a['konteksty_sezonowe'] if isinstance(k, dict)])}")
-                                        if a.get('konteksty_lifestyle'):
-                                            md_lines.append(f"- Lifestyle: {', '.join([k.get('sytuacja_lub_aktywnosc','') for k in a['konteksty_lifestyle'] if isinstance(k, dict)])}")
-                                md_lines.append("")
-                                
-                            if "mapa_contentowa" in data_a and isinstance(data_a["mapa_contentowa"], list):
-                                md_lines.append("### 📝 Przykładowe Tematy Contentowe")
-                                for m in data_a["mapa_contentowa"][:3]:
-                                    if isinstance(m, dict):
-                                        md_lines.append(f"- **{m.get('proponowany_tytul_artykulu', m.get('temat', ''))}** (Intencja: {m.get('intencja_uzytkownika', '')})")
-                                md_lines.append("")
+                            md_lines.append("### 🔍 Frazy SEO (P3 + P4)")
+                            md_lines.append(f"Wygenerowano łącznie **{len(combined_phrases)}** unikalnych seed keywords.")
+                            md_lines.append(f"Przykładowe 10 fraz: {', '.join(combined_phrases[:10])}...")
+                            md_lines.append("")
 
-                            md_lines.append("### 📦 Pełny profil analizy JSON")
-                            md_lines.append("```json\n" + json.dumps(data_a, indent=2, ensure_ascii=False) + "\n```")
+                            md_lines.append("### 📦 Pełne JSONy na dole rozwijanej sekcji")
                             
                             analysis_text = "\n".join(md_lines)
                         except Exception as e:
-                            analysis_text = f"Błąd parsowania JSON (Prompt 1): {result_a}\n\nWyjątek: {e}"
+                            analysis_text = f"Błąd parsowania JSON w kaskadzie: {e}"
                             st.warning(f"Błąd parsowania JSON dla {url}")
-                            
-                        try:
-                            data_b = json.loads(result_b)
-                            raw_phrases = data_b.get('seed_keywords', [])
-                            phrases = [str(p).replace('*', '').strip().lower() for p in raw_phrases if str(p).strip()]
-                        except Exception as e:
-                            phrases = []
-                            st.warning(f"Błąd parsowania JSON (Prompt 2): {result_b}")
+                            combined_phrases = []
+                            d1, d2, d3, d4 = {}, {}, {}, {}
                             
                         product_analysis.append({
                             "url": url,
                             "analysis": analysis_text,
-                            "seed_keywords": phrases
+                            "seed_keywords": combined_phrases,
+                            "json1": d1 if 'd1' in locals() else {},
+                            "json2": d2 if 'd2' in locals() else {},
+                            "json3": d3 if 'd3' in locals() else {},
+                            "json4": d4 if 'd4' in locals() else {}
                         })
                     else:
                         st.warning(f"Brak zawartości do analizy dla {url}")
@@ -423,10 +741,116 @@ Zwróć wyłącznie JSON w strukturze:
                 my_bar.progress(progress_value, text=f"Przeanalizowano {idx+1} z {len(items_to_analyze)} produktów.")
                 
             st.session_state.product_analysis = product_analysis
-            st.success("Analiza zakończona!")
+            st.success("Kaskada zakończona!")
             
     if "product_analysis" in st.session_state:
         st.subheader("Wyniki Analizy AI")
+        
+        from utils.helpers import to_excel_multi
+        
+        products_data = []
+        keywords_data = []
+        zastosowania_data = []
+        
         for item in st.session_state.product_analysis:
-            with st.expander(item["url"]):
-                st.markdown(item["analysis"])
+            url = item["url"]
+            j1 = item.get("json1", {})
+            j2 = item.get("json2", {})
+            j3 = item.get("json3", {})
+            j4 = item.get("json4", {})
+            
+            with st.expander(f"📊 Analiza dla: {url}", expanded=True):
+                st.markdown("### 🏷️ Profil Produktu")
+                p1 = j1.get("produkt", {})
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Nazwa", p1.get("nazwa", "Brak"))
+                c2.metric("Status", p1.get("status_produktu", "Brak"))
+                c3.metric("Kategoria", p1.get("kategoria", "Brak"))
+                
+                st.markdown("### 🎯 Strategia & Wnioski")
+                strat = j2.get("profil_strategiczny_produktu", {})
+                if strat:
+                    st.info(f"**Główna Rola:** {strat.get('glowna_rola_produktu', '')}\n\n**Szansa Contentowa:** {strat.get('najwieksza_szansa_contentowa', '')}")
+                
+                podsumowanie = j2.get("podsumowanie", {})
+                if podsumowanie:
+                    if podsumowanie.get("najwazniejszy_wniosek"):
+                        st.success(f"**Najważniejszy wniosek:** {podsumowanie.get('najwazniejszy_wniosek')}")
+                    if podsumowanie.get("najwieksze_ryzyko"):
+                        st.warning(f"**Największe ryzyko:** {podsumowanie.get('najwieksze_ryzyko')}")
+                
+                st.markdown("### 🔑 Słowa Kluczowe")
+                seed_kw = item.get("seed_keywords", [])
+                st.write(f"Wygenerowano łącznie **{len(seed_kw)}** unikalnych seed keywords.")
+                if seed_kw:
+                    st.write(", ".join(seed_kw[:20]) + ("..." if len(seed_kw)>20 else ""))
+                
+                st.markdown("### 📦 Pełne surowe dane (JSON)")
+                if j1:
+                    with st.expander("JSON 1: Fakty"): st.json(j1)
+                if j2:
+                    with st.expander("JSON 2: Analiza Rozszerzona"): st.json(j2)
+                if j3:
+                    with st.expander("JSON 3: Frazy z Faktów"): st.json(j3)
+                if j4:
+                    with st.expander("JSON 4: Frazy z Analizy"): st.json(j4)
+            
+            # Zebranie danych do Excela
+            products_data.append({
+                "URL": url,
+                "Nazwa": p1.get("nazwa", ""),
+                "Status": p1.get("status_produktu", ""),
+                "Kategoria": p1.get("kategoria", ""),
+                "Postać": p1.get("postac", ""),
+                "Dostępny bez recepty": p1.get("czy_dostepny_bez_recepty", ""),
+                "Najważniejszy Wniosek": podsumowanie.get("najwazniejszy_wniosek", "") if podsumowanie else "",
+                "Szansa Contentowa": strat.get("najwieksza_szansa_contentowa", "") if strat else "",
+                "Największe Ryzyko": podsumowanie.get("najwieksze_ryzyko", "") if podsumowanie else ""
+            })
+            
+            for k in j3.get("keyword_details", []):
+                keywords_data.append({
+                    "URL": url,
+                    "Fraza": k.get("fraza", ""),
+                    "Źródło": "Fakty",
+                    "Typ": k.get("typ", ""),
+                    "Priorytet": k.get("priorytet", ""),
+                    "Uwaga / Podstawa": k.get("podstawa_w_faktach", "")
+                })
+            for k in j4.get("keyword_details", []):
+                keywords_data.append({
+                    "URL": url,
+                    "Fraza": k.get("fraza", ""),
+                    "Źródło": "Analiza Rozszerzona",
+                    "Typ": k.get("typ", ""),
+                    "Priorytet": k.get("priorytet", ""),
+                    "Uwaga / Podstawa": k.get("uwaga_komunikacyjna", "")
+                })
+                
+            for zast in j2.get("analiza_zastosowan", []):
+                zastosowania_data.append({
+                    "URL": url,
+                    "Zastosowanie": zast.get("zastosowanie", ""),
+                    "Typ": zast.get("typ", ""),
+                    "Rola Produktu": zast.get("rola_produktu", ""),
+                    "Poziom Pewności": zast.get("poziom_pewnosci", ""),
+                    "Wymaga Weryfikacji": zast.get("wymaga_weryfikacji", "")
+                })
+        
+        excel_sheets = {
+            "Produkty": pd.DataFrame(products_data),
+            "Słowa Kluczowe": pd.DataFrame(keywords_data),
+            "Zastosowania": pd.DataFrame(zastosowania_data)
+        }
+        
+        excel_data = to_excel_multi(excel_sheets)
+        
+        st.markdown("---")
+        st.download_button(
+            label="📥 Pobierz Raport Krok 2 (Excel)",
+            data=excel_data,
+            file_name="Raport_Krok2_Analiza_Produktow.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary"
+        )
