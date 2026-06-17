@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 import openai
+import json
 
 def render(openai_api_key):
-    st.header("Krok 5: Analiza Brandu")
+    st.header("Krok 5: Analiza Brandu (2 Etapy)")
     
-    st.markdown("Wgraj pliki zawierające zapytania brandowe, czyli to, co użytkownicy wyszukują wokół nazwy Twojej marki/produktu (np. z Ahrefs i Senuto).")
+    st.markdown("Wgraj pliki zawierające zapytania brandowe (np. z Ahrefs i Senuto).")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -14,73 +15,376 @@ def render(openai_api_key):
         brand_senuto = st.file_uploader("Brand Keywords Senuto (XLSX)", type=['xlsx', 'xls'])
         
     with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
-        models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
-        step5_model = st.selectbox("Wybierz model OpenAI:", models, index=0, key="step5_model")
+        models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
         
-        step5_sys = st.text_area("System Prompt", value="Jesteś ekspertem od analizy intencji słów kluczowych.", key="step5_sys")
-        
-        def_user_5 = """Oto lista zapytań użytkowników zawierających nazwę brandu/produktu klienta:
-{chunk}
+        st.markdown("### 📝 Prompt 1: Analiza Pojedynczej Frazy")
+        template_5a = st.radio("Szablon Ustawień (Fraza):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: medium, temp: 0.1)"], key="template_5a")
+        if template_5a == "Domyślny (Ręczne parametry)":
+            step5_model_a = st.selectbox("Wybierz model:", models, index=0, key="step5_model_a")
+            ca1, ca2 = st.columns(2)
+            with ca1:
+                step5_temp_a = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step5_temp_a")
+            with ca2:
+                step5_tokens_a = st.number_input("Max Tokens", 100, 16000, 4000, key="step5_tokens_a")
+            params_5a = {"model": step5_model_a, "temperature": step5_temp_a, "max_tokens": step5_tokens_a}
+        else:
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=medium.")
+            params_5a = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "medium"}
+            
+        sys_5a_def = """Jesteś ekspertem SEO, content strategistą i analitykiem fraz brandowych dla produktów medycznych, kosmetycznych, dermokosmetycznych i OTC.
 
-Zadanie:
-Pogrupuj te zapytania na klastry intencji (np. Pytania o stosowanie, Skutki uboczne, Wiek dziecka, Opinie).
-Zaproponuj 3 gotowe tematy poradnikowe na bloga, które zbiorą ruch z tych zapytań i najlepiej na nie odpowiedzą.
-Zwróć wynik w ładnym formacie markdown (Tytuł klastra, frazy, sugerowane artykuły)."""
-        step5_user = st.text_area("User Prompt (użyj {chunk} jako zmiennej na paczkę fraz)", value=def_user_5, height=200, key="step5_user")
+Analizujesz pojedyncze słowo kluczowe zawierające nazwę marki lub produktu. Twoim zadaniem jest ocenić, jaka jest intencja użytkownika, czego użytkownik prawdopodobnie szuka, czy strona klienta powinna odpowiadać na to zapytanie oraz jakiego typu treść należy przygotować.
+
+Nie oceniasz wyłącznie potencjału SEO. Oceniasz również:
+* dopasowanie frazy do produktu,
+* potencjał sprzedażowy,
+* ryzyko komunikacyjne,
+* ryzyko claimów medycznych,
+* potrzebę stworzenia nowej podstrony,
+* potrzebę rozbudowy istniejącej strony,
+* możliwość obsłużenia frazy przez FAQ,
+* zasadność stworzenia artykułu, landing page’a, porównania lub sekcji zakupowej.
+
+Zasady analizy:
+1. Zwracaj wyłącznie poprawny obiekt JSON.
+2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+3. Nie wymyślaj działania produktu, którego nie potwierdza kontekst produktów klienta.
+4. Nie rekomenduj treści, które sugerują leczenie choroby, jeżeli produkt nie ma takiego zastosowania.
+5. Jeżeli fraza dotyczy choroby, leczenia, ciąży, niemowląt, ran, infekcji, działań niepożądanych, przeciwwskazań, stosowania na błony śluzowe lub stosowania poza oczywistym zakresem produktu, oznacz wysokie ryzyko albo konieczność weryfikacji.
+6. Jeżeli produkt może wspierać skutek problemu, ale nie rozwiązuje problemu pierwotnego, nie rekomenduj treści sugerującej leczenie problemu pierwotnego.
+7. Przykład: jeśli fraza dotyczy trądziku, a produkt może pomagać wyłącznie na przesuszenie skóry po terapii przeciwtrądzikowej, nie rekomenduj artykułu „Linomag na trądzik”. Bezpieczniejszy kierunek to „sucha skóra po terapii przeciwtrądzikowej”.
+8. Domyślnie unikaj tworzenia osobnej podstrony dla jednej frazy, jeżeli można ją bezpiecznie obsłużyć sekcją FAQ, akapitem na stronie produktu albo częścią większego klastra.
+9. Osobną podstronę rekomenduj tylko wtedy, gdy fraza ma jasną intencję, dobre dopasowanie do produktu, sensowny potencjał SEO i nie powoduje kanibalizacji.
+10. Bierz pod uwagę pozycję:
+* pozycje 1–3: zwykle utrzymanie i ewentualna rozbudowa istniejącej treści,
+* pozycje 4–10: optymalizacja istniejącej strony, FAQ, sekcji lub title/H1,
+* pozycje 11–30: szansa na mocniejszą rozbudowę albo nową sekcję,
+* pozycje powyżej 30: możliwa nowa treść, jeśli volume i dopasowanie są dobre.
+11. Bierz pod uwagę volume:
+* wysokie volume + dobre dopasowanie = wyższy priorytet,
+* niskie volume + fraza bezpieczeństwa lub zakupowa może nadal mieć sens,
+* niskie volume + luźne dopasowanie = niski priorytet albo odrzucenie.
+12. Frazy brandowe często są blisko decyzji zakupowej, dlatego zwracaj uwagę na zapytania typu: cena, skład, opinie, ulotka, jak stosować, od jakiego wieku, na co, czy można, zamiennik, porównanie z konkurencją.
+13. Odrzucaj albo oznaczaj jako ryzykowne frazy, które mogą prowadzić do niezgodnych claimów.
+14. Zachowaj rygor: lepiej zarekomendować krótkie FAQ niż niepotrzebną osobną podstronę."""
+        step5_sys_a = st.text_area("System Prompt (Analiza Frazy)", value=sys_5a_def, height=250, key="step5_sys_a")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            step5_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step5_temp")
-        with col2:
-            step5_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step5_tokens")
+        user_5a_def = """Przeanalizuj pojedynczą frazę brandową na podstawie danych SEO oraz kontekstu produktów klienta.
+
+Dane frazy:
+Keyword: {keyword}
+Position: {position}
+Volume: {volume}
+
+Kontekst produktów klienta:
+{products_context}
+
+Cel analizy:
+Chcę sprawdzić, czy klient powinien odpowiedzieć na tę frazę poprzez:
+* stworzenie nowej podstrony,
+* rozbudowę istniejącej strony produktu,
+* dodanie sekcji FAQ,
+* stworzenie artykułu poradnikowego,
+* stworzenie landing page’a,
+* stworzenie porównania,
+* dodanie sekcji „gdzie kupić”,
+* dodanie informacji o składzie, bezpieczeństwie, stosowaniu lub przeciwwskazaniach,
+* albo nietworzenie żadnej treści, jeśli fraza jest nieadekwatna, zbyt ryzykowna lub zbyt słabo powiązana z produktem.
+
+Zwróć wyłącznie poprawny JSON w strukturze:
+{
+"keyword": "{keyword}",
+"position": {position},
+"volume": {volume},
+"typ_frazy": "produktowa | problemowa | zastosowanie | pytanie_o_stosowanie | bezpieczenstwo | sklad | przeciwwskazania | porownawcza | zakupowa | opinie | wariant_produktu | wiek_lub_grupa_docelowa | niejasna",
+"intencja": "informacyjna | poradnikowa | produktowa | transakcyjna | porownawcza | nawigacyjna | bezpieczeństwo | niejasna",
+"etap_sciezki_uzytkownika": "poznanie | rozważanie | decyzja | po_zakupie | niejasne",
+"produkt": "najlepiej dopasowany produkt lub adres URL produktu z kontekstu klienta albo pusty string",
+"segment": "problem, potrzeba lub kategoria, np. sucha skóra, otarcia, odparzenia, skład, cena",
+"problem_uzytkownika": "krótki opis tego, czego użytkownik prawdopodobnie szuka",
+"dopasowanie_do_produktu": "bezposrednie | posrednie | luzne | brak",
+"czy_obecna_strona_powinna_odpowiadac": true,
+"czy_potrzebna_nowa_podstrona": true,
+"rekomendowany_typ_tresci": "DODAJ_FAQ | ROZBUDUJ_STRONE_PRODUKTU | STWORZ_ARTYKUL | STWORZ_LANDING | STWORZ_POROWNANIE | DODAJ_SEKCJE_GDZIE_KUPIC | DODAJ_SEKCJE_SKLAD | DODAJ_SEKCJE_BEZPIECZENSTWO | NIE_TWORZ_TRESCI | WYMAGA_WERYFIKACJI_MEDYCZNEJ",
+"proponowany_temat_lub_sekcja": "proponowany temat artykułu, nazwa sekcji, FAQ albo landing page",
+"bezpieczny_kierunek_odpowiedzi": "jak bezpiecznie odpowiedzieć na zapytanie użytkownika",
+"czego_nie_sugerowac": "jakich claimów, obietnic lub zastosowań nie należy sugerować",
+"czy_fraza_moze_byc_czescia_wiekszego_klastra": true,
+"proponowany_klaster": "nazwa klastra, np. sucha i podrażniona skóra, stosowanie u dzieci, skład i bezpieczeństwo",
+"potencjal_sprzedazowy": "wysoki | sredni | niski",
+"ryzyko_claimow": "niskie | srednie | wysokie",
+"wymaga_weryfikacji": true,
+"priorytet": "wysoki | sredni | niski",
+"uzasadnienie_priorytetu": "krótkie wyjaśnienie priorytetu z uwzględnieniem position, volume, dopasowania i ryzyka",
+"uzasadnienie": "jedno krótkie zdanie wyjaśniające rekomendację"
+}"""
+        step5_user_a = st.text_area("User Prompt (Analiza Frazy)", value=user_5a_def, height=250, key="step5_user_a")
+
+        st.markdown("---")
+        st.markdown("### 📦 Prompt 2: Grupowanie Fraz (Klastry)")
+        template_5b = st.radio("Szablon Ustawień (Grupowanie):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: medium, temp: 0.1)"], key="template_5b")
+        if template_5b == "Domyślny (Ręczne parametry)":
+            step5_model_b = st.selectbox("Wybierz model:", models, index=0, key="step5_model_b")
+            cb1, cb2 = st.columns(2)
+            with cb1:
+                step5_temp_b = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step5_temp_b")
+            with cb2:
+                step5_tokens_b = st.number_input("Max Tokens", 100, 16000, 4000, key="step5_tokens_b")
+            params_5b = {"model": step5_model_b, "temperature": step5_temp_b, "max_tokens": step5_tokens_b}
+        else:
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=medium.")
+            params_5b = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "medium"}
+            
+        sys_5b_def = """Jesteś ekspertem SEO, content strategistą i architektem informacji dla stron produktowych, e-commerce oraz marek medycznych, kosmetycznych, dermokosmetycznych i OTC.
+
+Twoim zadaniem jest pogrupowanie przeanalizowanych fraz brandowych w logiczne klastry contentowe i przygotowanie rekomendacji, jakie treści klient powinien stworzyć albo rozbudować.
+
+Nie tworzysz osobnej podstrony dla każdej frazy. Grupujesz frazy tak, aby:
+* unikać kanibalizacji,
+* wzmacniać istniejące strony produktowe,
+* tworzyć tylko te nowe podstrony, które mają realny sens,
+* obsłużyć podobne intencje jedną sekcją, FAQ, artykułem albo landing page’em,
+* oddzielić frazy sprzedażowe od informacyjnych,
+* oddzielić frazy bezpieczne od fraz wymagających weryfikacji medycznej, prawnej lub regulatory.
+
+Zasady grupowania:
+1. Zwracaj wyłącznie poprawny obiekt JSON.
+2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+3. Grupuj frazy według wspólnej intencji, problemu, produktu, zastosowania lub etapu ścieżki użytkownika.
+4. Nie grupuj razem fraz, które mają różną intencję, np. „cena” i „jak stosować”, chyba że mają trafić do jednej rozbudowanej strony produktu jako osobne sekcje.
+5. Nie rekomenduj osobnych podstron dla bliskich wariantów tej samej frazy, np. „linomag sucha skóra”, „linomag na suchą skórę”, „linomag przesuszona skóra”.
+6. Osobną podstronę rekomenduj tylko wtedy, gdy klaster ma wyraźną intencję, odpowiedni potencjał SEO, bezpieczne dopasowanie do produktu i nie będzie kanibalizował strony produktu.
+7. Jeżeli klaster dotyczy pytań prostych, bezpieczeństwa, składu, przeciwwskazań, wieku, stosowania lub krótkich odpowiedzi, preferuj FAQ albo sekcję na stronie produktu.
+8. Jeżeli klaster dotyczy problemu poradnikowego, który można rozwinąć edukacyjnie i naturalnie połączyć z produktem, rekomenduj artykuł poradnikowy.
+9. Jeżeli klaster dotyczy ceny, aptek, dostępności lub zakupu, rekomenduj sekcję „gdzie kupić”, landing zakupowy albo rozbudowę strony produktu.
+10. Jeżeli klaster dotyczy porównań z konkurencją, rekomenduj porównanie tylko przy niskim lub średnim ryzyku claimów. Przy wysokim ryzyku oznacz konieczność weryfikacji.
+11. Jeżeli klaster dotyczy chorób, leczenia, ciąży, niemowląt, ran, infekcji, działań niepożądanych, przeciwwskazań albo stosowania poza oczywistym zakresem produktu, oznacz konieczność weryfikacji.
+12. Priorytetyzuj klastry według:
+* sumy volume fraz w klastrze,
+* aktualnych pozycji,
+* dopasowania do produktu,
+* potencjału sprzedażowego,
+* ryzyka claimów,
+* łatwości wdrożenia.
+13. Nie twórz klastra tylko dlatego, że istnieje pojedyncza fraza. Jeśli fraza jest odosobniona, niskiej jakości lub ryzykowna, oznacz ją jako „do_monitorowania” albo „odrzucone”.
+14. Wskazuj, czy rekomendowana treść powinna być: nową podstroną, rozbudową istniejącej strony produktu, sekcją FAQ, artykułem poradnikowym, landing page’em, porównaniem, sekcją zakupową, albo nie powinna być tworzona."""
+        step5_sys_b = st.text_area("System Prompt (Grupowanie)", value=sys_5b_def, height=250, key="step5_sys_b")
+        
+        user_5b_def = """Pogrupuj przeanalizowane frazy brandowe w klastry contentowe i przygotuj rekomendacje dla klienta.
+
+Dane wejściowe:
+{brand_keyword_analysis_json}
+
+Kontekst produktów klienta:
+{products_context}
+
+Cel:
+Chcę wiedzieć, jakie działania contentowe klient powinien wykonać na podstawie brandowych fraz SEO.
+
+Nie chcę osobnej rekomendacji dla każdej frazy. Chcę pogrupowania fraz w sensowne klastry i decyzji:
+* czy rozbudować istniejącą stronę produktu,
+* czy dodać FAQ,
+* czy stworzyć nowy artykuł,
+* czy stworzyć landing,
+* czy stworzyć porównanie,
+* czy dodać sekcję „gdzie kupić”,
+* czy nie tworzyć treści,
+* czy temat wymaga weryfikacji medycznej, prawnej lub regulatory.
+
+Zwróć wyłącznie poprawny JSON w strukturze:
+{
+"podsumowanie": {
+"liczba_przeanalizowanych_fraz": 0,
+"liczba_klastrow": 0,
+"liczba_rekomendowanych_nowych_podstron": 0,
+"liczba_rekomendowanych_rozbudow": 0,
+"liczba_tematow_wymagajacych_weryfikacji": 0,
+"najwieksza_szansa": "",
+"najwieksze_ryzyko": ""
+},
+"klastry": [
+{
+"nazwa_klastra": "",
+"typ_klastra": "produktowy | problemowy | zastosowanie | bezpieczenstwo | sklad | zakupowy | porownawczy | opinie | wariant_produktu | mieszany | ryzykowny",
+"intencja_glowna": "informacyjna | poradnikowa | produktowa | transakcyjna | porownawcza | nawigacyjna | bezpieczeństwo | mieszana | niejasna",
+"produkt": "najlepiej dopasowany produkt lub adres URL produktu z kontekstu klienta albo pusty string",
+"segment": "problem, potrzeba lub kategoria",
+"frazy_w_klastrze": [{"keyword": "", "position": 0, "volume": 0, "rola_w_klastrze": "glowna | wspierajaca | faq | long_tail | ryzykowna"}],
+"suma_volume": 0,
+"najlepsza_pozycja": 0,
+"najgorsza_pozycja": 0,
+"srednia_pozycja": 0,
+"dominujace_dopasowanie_do_produktu": "bezposrednie | posrednie | luzne | brak",
+"potencjal_sprzedazowy": "wysoki | sredni | niski",
+"ryzyko_claimow": "niskie | srednie | wysokie",
+"wymaga_weryfikacji": true,
+"rekomendacja": "ROZBUDUJ_STRONE_PRODUKTU | DODAJ_FAQ | STWORZ_ARTYKUL | STWORZ_LANDING | STWORZ_POROWNANIE | DODAJ_SEKCJE_GDZIE_KUPIC | DODAJ_SEKCJE_SKLAD | DODAJ_SEKCJE_BEZPIECZENSTWO | NIE_TWORZ_TRESCI | DO_MONITOROWANIA | WYMAGA_WERYFIKACJI_MEDYCZNEJ",
+"czy_nowa_podstrona": true,
+"czy_rozbudowa_istniejacej_strony": true,
+"docelowa_istniejaca_strona": "adres URL produktu lub strony, którą należy rozbudować, albo pusty string",
+"proponowany_url_lub_slug": "",
+"proponowany_title": "",
+"proponowany_h1": "",
+"proponowane_sekcje": [{"naglowek": "", "cel_sekcji": "", "frazy_do_obsluzenia": []}],
+"proponowane_faq": [{"pytanie": "", "bezpieczna_odpowiedz": "", "frazy_do_obsluzenia": [], "wymaga_weryfikacji": true}],
+"bezpieczny_kierunek_tresci": "",
+"czego_nie_sugerowac": "",
+"priorytet": "wysoki | sredni | niski",
+"uzasadnienie_priorytetu": "",
+"uzasadnienie_rekomendacji": ""
+}
+],
+"frazy_odrzucone_lub_do_monitorowania": [{"keyword": "", "position": 0, "volume": 0, "powod": "brak_dopasowania | zbyt_ryzykowne | zbyt_male_volume | niejasna_intencja | kanibalizacja | obsluzone_przez_inny_klaster", "rekomendacja": "NIE_TWORZ_TRESCI | DO_MONITOROWANIA | WYMAGA_WERYFIKACJI"}],
+"priorytetowe_dzialania": [{"kolejnosc": 1, "dzialanie": "", "typ_dzialania": "rozbudowa | faq | artykul | landing | porownanie | sekcja_zakupowa | weryfikacja", "powiazany_klaster": "", "uzasadnienie": ""}],
+"ryzyka_i_uwagi": [{"obszar": "", "ryzyko": "", "jak_ograniczyc_ryzyko": ""}]
+}"""
+        step5_user_b = st.text_area("User Prompt (Grupowanie)", value=user_5b_def, height=250, key="step5_user_b")
             
     if st.button("Rozpocznij Analizę Brandu AI", type="primary"):
-        brand_kws = []
+        brand_data = []
+        
+        def extract_data(df):
+            k_col = next((c for c in df.columns if 'keyword' in str(c).lower() or 'słowo' in str(c).lower()), df.columns[0])
+            p_col = next((c for c in df.columns if 'pos' in str(c).lower() or 'poz' in str(c).lower()), None)
+            v_col = next((c for c in df.columns if 'vol' in str(c).lower() or 'wyszuk' in str(c).lower()), None)
+            
+            extracted = []
+            for _, row in df.iterrows():
+                kw = str(row[k_col]).strip() if pd.notna(row[k_col]) else ""
+                pos = int(row[p_col]) if p_col and pd.notna(row[p_col]) else 0
+                vol = int(row[v_col]) if v_col and pd.notna(row[v_col]) else 0
+                if kw:
+                    extracted.append({"keyword": kw, "position": pos, "volume": vol})
+            return extracted
+            
         if brand_ahrefs:
             try:
                 df_b_ahrefs = pd.read_csv(brand_ahrefs, encoding="utf-16le", sep="\t")
-                col_k = "Keyword" if "Keyword" in df_b_ahrefs.columns else df_b_ahrefs.columns[0]
-                brand_kws.extend(df_b_ahrefs[col_k].dropna().tolist())
-            except:
-                st.error("Błąd parsowania Ahrefs Brand CSV.")
+                if len(df_b_ahrefs.columns) <= 1:
+                    brand_ahrefs.seek(0)
+                    df_b_ahrefs = pd.read_csv(brand_ahrefs)
+                brand_data.extend(extract_data(df_b_ahrefs))
+            except Exception as e:
+                st.error(f"Błąd parsowania Ahrefs: {e}")
         if brand_senuto:
             try:
                 df_b_senuto = pd.read_excel(brand_senuto)
-                col_k = "Słowo kluczowe" if "Słowo kluczowe" in df_b_senuto.columns else df_b_senuto.columns[0]
-                brand_kws.extend(df_b_senuto[col_k].dropna().tolist())
-            except:
-                st.error("Błąd parsowania Senuto Brand XLSX.")
+                brand_data.extend(extract_data(df_b_senuto))
+            except Exception as e:
+                st.error(f"Błąd parsowania Senuto: {e}")
                 
-        if brand_kws:
-            unique_kws = list(set(brand_kws))
-            st.info(f"Znaleziono {len(unique_kws)} unikalnych zapytań brandowych. Rozpoczynam AI Kategoryzację...")
+        if not brand_data:
+            st.warning("Nie znaleziono poprawnych fraz w plikach.")
+            return
             
-            all_brand_ideas = ""
-            client = openai.OpenAI(api_key=openai_api_key)
-            
-            chunk_size = 100
-            chunks = [unique_kws[i:i + chunk_size] for i in range(0, len(unique_kws), chunk_size)]
-            
-            my_bar = st.progress(0, text="Analiza zapytań brandowych...")
-            for i, chunk in enumerate(chunks):
-                prompt = step5_user.replace("{chunk}", str(chunk))
+        # Deduplicate
+        seen = set()
+        unique_brand_data = []
+        for item in brand_data:
+            if item["keyword"] not in seen:
+                seen.add(item["keyword"])
+                unique_brand_data.append(item)
+                
+        st.info(f"Znaleziono {len(unique_brand_data)} unikalnych zapytań brandowych. Rozpoczynam Etap 1: Analiza każdej frazy...")
+        
+        products_context = "Lista naszych produktów wraz z analizą:\n"
+        if "product_analysis" in st.session_state:
+            for item in st.session_state.product_analysis:
+                products_context += f"- Produkt: {item['url']}\n  Analiza: {item['analysis']}\n\n"
+        
+        client = openai.OpenAI(api_key=openai_api_key)
+        
+        # Etap 1: Analiza pojedynczych fraz
+        analyzed_keywords = []
+        my_bar_1 = st.progress(0, text="Analiza fraz w toku...")
+        
+        for i, item in enumerate(unique_brand_data):
+            prompt = step5_user_a.replace("{keyword}", str(item["keyword"])).replace("{position}", str(item["position"])).replace("{volume}", str(item["volume"])).replace("{products_context}", products_context)
+            try:
+                call_a_kwargs = {
+                    "model": params_5a["model"],
+                    "response_format": { "type": "json_object" },
+                    "messages": [
+                        {"role": "system", "content": step5_sys_a},
+                        {"role": "user", "content": prompt}
+                    ]
+                }
+                if "temperature" in params_5a: call_a_kwargs["temperature"] = params_5a["temperature"]
+                if "max_tokens" in params_5a: call_a_kwargs["max_tokens"] = params_5a["max_tokens"]
+                if "reasoning_effort" in params_5a: call_a_kwargs["reasoning_effort"] = params_5a["reasoning_effort"]
+                    
+                resp_a = client.chat.completions.create(**call_a_kwargs)
+                res_a = resp_a.choices[0].message.content.strip()
+                
                 try:
-                    ai_response = client.chat.completions.create(
-                        model=step5_model,
-                        temperature=step5_temp,
-                        max_tokens=step5_tokens,
-                        messages=[
-                            {"role": "system", "content": step5_sys},
-                            {"role": "user", "content": prompt}
-                        ]
-                    )
-                    all_brand_ideas += ai_response.choices[0].message.content + "\n\n---\n\n"
-                except Exception as e:
-                    st.warning(f"Błąd OpenAI przy paczce {i+1}: {e}")
+                    json_res = json.loads(res_a)
+                    analyzed_keywords.append(json_res)
+                except:
+                    pass # Skip if invalid json
+            except Exception as e:
+                st.warning(f"Błąd przy frazie {item['keyword']}: {e}")
                 
-                my_bar.progress((i + 1) / len(chunks), text=f"Przeanalizowano paczkę {i+1}/{len(chunks)}.")
+            my_bar_1.progress((i + 1) / len(unique_brand_data), text=f"Analiza: {i+1}/{len(unique_brand_data)} fraz.")
             
-            st.success("Kategoryzacja zakończona!")
-            st.markdown(all_brand_ideas)
-        else:
-            st.warning("Nie załadowano żadnych poprawnych plików z frazami brandowymi.")
+        if not analyzed_keywords:
+            st.error("Nie powiodła się analiza żadnej frazy.")
+            return
+            
+        st.info("Etap 1 zakończony. Rozpoczynam Etap 2: Grupowanie i klastrowanie...")
+        
+        # Etap 2: Grupowanie
+        brand_keyword_analysis_json = json.dumps(analyzed_keywords, ensure_ascii=False)
+        prompt_b = step5_user_b.replace("{brand_keyword_analysis_json}", brand_keyword_analysis_json).replace("{products_context}", products_context)
+        
+        try:
+            call_b_kwargs = {
+                "model": params_5b["model"],
+                "response_format": { "type": "json_object" },
+                "messages": [
+                    {"role": "system", "content": step5_sys_b},
+                    {"role": "user", "content": prompt_b}
+                ]
+            }
+            if "temperature" in params_5b: call_b_kwargs["temperature"] = params_5b["temperature"]
+            if "max_tokens" in params_5b: call_b_kwargs["max_tokens"] = params_5b["max_tokens"]
+            if "reasoning_effort" in params_5b: call_b_kwargs["reasoning_effort"] = params_5b["reasoning_effort"]
+                
+            resp_b = client.chat.completions.create(**call_b_kwargs)
+            final_json = json.loads(resp_b.choices[0].message.content.strip())
+            
+            st.session_state.brand_clusters = final_json
+            st.success("Analiza i klastrowanie zakończone pomyślnie!")
+            
+            # Display nicely
+            md = []
+            podsumowanie = final_json.get("podsumowanie", {})
+            md.append("## 🎯 Podsumowanie Analizy Brandu")
+            md.append(f"- Przeanalizowane frazy: **{podsumowanie.get('liczba_przeanalizowanych_fraz', 0)}**")
+            md.append(f"- Klastry: **{podsumowanie.get('liczba_klastrow', 0)}**")
+            md.append(f"- Rekomendowane nowe podstrony: **{podsumowanie.get('liczba_rekomendowanych_nowych_podstron', 0)}**")
+            md.append(f"- Rekomendowane rozbudowy: **{podsumowanie.get('liczba_rekomendowanych_rozbudow', 0)}**")
+            md.append(f"**Największa szansa:** {podsumowanie.get('najwieksza_szansa', '')}")
+            md.append(f"**Największe ryzyko:** {podsumowanie.get('najwieksze_ryzyko', '')}")
+            md.append("---")
+            
+            klastry = final_json.get("klastry", [])
+            for i, k in enumerate(klastry):
+                md.append(f"### {i+1}. {k.get('nazwa_klastra', 'Bez nazwy')} ({k.get('typ_klastra', '')})")
+                md.append(f"**Rekomendacja:** {k.get('rekomendacja', '')} ({k.get('priorytet', 'brak')})")
+                if k.get("proponowany_title"):
+                    md.append(f"- **Proponowany Title:** {k.get('proponowany_title')}")
+                if k.get("proponowany_h1"):
+                    md.append(f"- **Proponowany H1:** {k.get('proponowany_h1')}")
+                
+                f_list = [f"{f.get('keyword', '')} (Vol: {f.get('volume', 0)}, Poz: {f.get('position', 0)})" for f in k.get("frazy_w_klastrze", [])]
+                md.append("- **Frazy:** " + ", ".join(f_list))
+                md.append(f"- **Uzasadnienie:** {k.get('uzasadnienie_rekomendacji', '')}")
+                md.append("\n")
+                
+            st.markdown("\n".join(md))
+            
+            with st.expander("📦 Pełny profil JSON"):
+                st.json(final_json)
+                
+        except Exception as e:
+            st.error(f"Błąd w Etapie 2 (Grupowanie): {e}")

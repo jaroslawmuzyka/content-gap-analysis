@@ -21,10 +21,23 @@ def render(openai_api_key):
         manual_df = st.data_editor(default_manual_df, num_rows="dynamic", use_container_width=True)
         
     with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
-        models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
+        models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
         
         st.markdown("### 📝 Prompt 1: Analiza Produktu")
-        step2_model_a = st.selectbox("Wybierz model dla analizy:", models, index=0, key="step2_model_a")
+        template_a = st.radio("Szablon Ustawień (Analiza):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.5, reasoning: medium, temp: 0.2)"], key="template_a")
+        
+        if template_a == "Domyślny (Ręczne parametry)":
+            step2_model_a = st.selectbox("Wybierz model dla analizy:", models, index=0, key="step2_model_a")
+            ca1, ca2 = st.columns(2)
+            with ca1:
+                step2_temp_a = st.slider("Temperatura (Analiza)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_a")
+            with ca2:
+                step2_tokens_a = st.number_input("Max Tokens (Analiza)", 100, 16000, 4000, key="step2_tokens_a")
+            params_a = {"model": step2_model_a, "temperature": step2_temp_a, "max_tokens": step2_tokens_a}
+        else:
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.5, temp=0.2, reasoning_effort=medium.")
+            params_a = {"model": "gpt-5.5", "temperature": 0.2, "reasoning_effort": "medium"}
+
         step2_sys_a_def = """Jesteś analitykiem medyczno-kosmetycznym, strategiem contentowym i specjalistą SEO dla produktów zdrowotnych, dermokosmetycznych, kosmetycznych i OTC.
 
 Twoim zadaniem nie jest tylko streszczenie treści strony. Twoim zadaniem jest zbudowanie możliwie pełnej mapy zastosowań produktu: jakie problemy rozwiązuje, z czego te problemy mogą wynikać, w jakich sytuacjach życiowych występują, jakie mają skutki, jakie grupy odbiorców mogą ich doświadczać oraz jakie tematy contentowe można na tej podstawie rozwijać.
@@ -95,35 +108,84 @@ Zwróć wyłącznie poprawny JSON w poniższej strukturze:
 }"""
         step2_user_a = st.text_area("User Prompt (Analiza)", value=def_user_2_a, height=350, key="step2_user_a")
         
-        ca1, ca2 = st.columns(2)
-        with ca1:
-            step2_temp_a = st.slider("Temperatura (Analiza)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_a")
-        with ca2:
-            step2_tokens_a = st.number_input("Max Tokens (Analiza)", 100, 16000, 4000, key="step2_tokens_a")
-
         st.markdown("---")
         st.markdown("### 🔍 Prompt 2: Generowanie Fraz SEO")
-        step2_model_b = st.selectbox("Wybierz model dla fraz SEO:", models, index=0, key="step2_model_b")
-        step2_sys_b = st.text_area("System Prompt (Frazy SEO)", value="Jesteś ekspertem SEO.", key="step2_sys_b")
         
-        def_user_2_b = """Wygeneruj frazy SEO dla produktu na podstawie jego treści.
-Strona: {url}
+        template_b = st.radio("Szablon Ustawień (Frazy):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: low, temp: 0.1)"], key="template_b")
+        if template_b == "Domyślny (Ręczne parametry)":
+            step2_model_b = st.selectbox("Wybierz model dla fraz SEO:", models, index=0, key="step2_model_b")
+            cb1, cb2 = st.columns(2)
+            with cb1:
+                step2_temp_b = st.slider("Temperatura (Frazy SEO)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_b")
+            with cb2:
+                step2_tokens_b = st.number_input("Max Tokens (Frazy SEO)", 100, 16000, 4000, key="step2_tokens_b")
+            params_b = {"model": step2_model_b, "temperature": step2_temp_b, "max_tokens": step2_tokens_b}
+        else:
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=low.")
+            params_b = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "low"}
+            
+        step2_sys_b_def = """Jesteś ekspertem SEO specjalizującym się w analizie produktów medycznych, kosmetycznych, dermokosmetycznych i OTC.
+
+Twoim zadaniem jest wygenerowanie listy seed keywords, czyli podstawowych fraz SEO opisujących produkt, jego główne zastosowania, problemy użytkownika oraz najważniejsze konteksty użycia.
+
+Nie generuj gotowych tytułów artykułów. Seed keyword ma być krótką frazą bazową, która może służyć później do dalszej analizy słów kluczowych.
+
+Zasady:
+1. Zwróć wyłącznie poprawny obiekt JSON.
+2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+3. Wygeneruj maksymalnie 30 fraz.
+4. Każda fraza ma mieć od 1 do 4 słów.
+5. Frazy mają być po polsku.
+6. Frazy mają być w mianowniku, o ile pozwala na to naturalny język polski.
+7. Dopuszczalne są naturalne konstrukcje typu "regeneracja skóry", "sucha skóra", "podrażniona skóra", "otarcia po bieganiu".
+8. Nie generuj fraz zbyt ogólnych, np. "skóra", "krem", "zdrowie", jeżeli nie są kluczowe dla produktu.
+9. Nie generuj zbyt długich long-taili, np. "co stosować na suchą skórę zimą".
+10. Nie powielaj podobnych wariantów tej samej frazy, np. "sucha skóra" i "skóra sucha" — wybierz naturalniejszą.
+11. Nie dodawaj nazw chorób, terapii ani zastosowań, których nie można bezpiecznie powiązać z produktem.
+12. Jeżeli produkt nie leczy danego problemu bezpośrednio, ale może być powiązany z jego skutkiem, wybierz frazę dotyczącą skutku, nie choroby pierwotnej.
+13. Przykład: jeśli terapia przeciwtrądzikowa może wysuszać skórę, nie wybieraj frazy "trądzik", tylko "sucha skóra", "przesuszona skóra" albo "regeneracja skóry".
+14. Priorytetyzuj frazy, które najlepiej opisują realne zastosowanie produktu i mogą mieć potencjał SEO.
+15. Kolejność fraz ma oznaczać priorytet — od najważniejszej do najmniej ważnej.
+16. Lista powinna zawierać różne typy fraz: problemowe, produktowe, zastosowania, objawy, sezonowe, lifestyle’owe i grupy odbiorców.
+17. Nie twórz fraz wyłącznie po to, żeby dobić do 30. Jeżeli sensownych fraz jest mniej, zwróć mniej."""
+        step2_sys_b = st.text_area("System Prompt (Frazy SEO)", value=step2_sys_b_def, height=250, key="step2_sys_b")
+        
+        def_user_2_b = """Wygeneruj seed keywords SEO dla produktu na podstawie treści strony oraz wcześniejszej analizy produktu.
+
+Strona:
+{url}
+
 Treść strony:
 {content}
 
-Zadanie:
-Zwróć poprawny obiekt JSON z najważniejszymi frazami (max 10, od 1 do 3 słów) w mianowniku, pasującymi do tego produktu.
-Struktura JSON:
+Analiza produktu:
+{product_analysis_json}
+
+Cel:
+Chcę otrzymać maksymalnie 30 najważniejszych fraz SEO, które najlepiej opisują:
+* główny problem rozwiązywany przez produkt,
+* problemy powiązane,
+* zastosowania produktu,
+* objawy lub skutki, na które produkt może odpowiadać,
+* konteksty sezonowe,
+* konteksty lifestyle’owe,
+* konteksty medyczno-kosmetyczne,
+* grupy odbiorców, jeżeli są istotne,
+* bezpieczne i zgodne z treścią strony zastosowania produktu.
+
+Nie wybieraj fraz tylko dlatego, że występują w treści strony. Wybieraj frazy, które najlepiej oddają intencję użytkownika i realne zastosowanie produktu.
+
+Nie generuj fraz, które sugerują działanie produktu niepotwierdzone w treści lub wymagające weryfikacji medycznej/regulacyjnej.
+
+Zwróć wyłącznie JSON w strukturze:
 {
-  "seed_keywords": ["fraza 1", "fraza 2"]
+"seed_keywords": [
+"fraza 1",
+"fraza 2",
+"fraza 3"
+]
 }"""
-        step2_user_b = st.text_area("User Prompt (Frazy SEO)", value=def_user_2_b, height=180, key="step2_user_b")
-        
-        cb1, cb2 = st.columns(2)
-        with cb1:
-            step2_temp_b = st.slider("Temperatura (Frazy SEO)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_b")
-        with cb2:
-            step2_tokens_b = st.number_input("Max Tokens (Frazy SEO)", 100, 16000, 4000, key="step2_tokens_b")
+        step2_user_b = st.text_area("User Prompt (Frazy SEO)", value=def_user_2_b, height=350, key="step2_user_b")
         
     if st.button("Rozpocznij Analizę", type="primary"):
         if not openai_api_key:
@@ -180,30 +242,42 @@ Struktura JSON:
                         
                         # Call 1
                         prompt_a = step2_user_a.replace("{url}", url).replace("{content}", content[:4000])
-                        ai_response_a = client.chat.completions.create(
-                            model=step2_model_a,
-                            temperature=step2_temp_a,
-                            max_tokens=step2_tokens_a,
-                            response_format={ "type": "json_object" },
-                            messages=[
+                        
+                        call_a_kwargs = {
+                            "model": params_a["model"],
+                            "response_format": { "type": "json_object" },
+                            "messages": [
                                 {"role": "system", "content": step2_sys_a},
                                 {"role": "user", "content": prompt_a}
                             ]
-                        )
+                        }
+                        if "temperature" in params_a: call_a_kwargs["temperature"] = params_a["temperature"]
+                        if "max_tokens" in params_a: call_a_kwargs["max_tokens"] = params_a["max_tokens"]
+                        if "top_p" in params_a: call_a_kwargs["top_p"] = params_a["top_p"]
+                        if "seed" in params_a: call_a_kwargs["seed"] = params_a["seed"]
+                        if "reasoning_effort" in params_a:
+                            # Note: OpenAi's Python SDK supports reasoning_effort for o-series models.
+                            call_a_kwargs["reasoning_effort"] = params_a["reasoning_effort"]
+                            
+                        ai_response_a = client.chat.completions.create(**call_a_kwargs)
                         result_a = ai_response_a.choices[0].message.content
                         
                         # Call 2
-                        prompt_b = step2_user_b.replace("{url}", url).replace("{content}", content[:4000])
-                        ai_response_b = client.chat.completions.create(
-                            model=step2_model_b,
-                            temperature=step2_temp_b,
-                            max_tokens=step2_tokens_b,
-                            response_format={ "type": "json_object" },
-                            messages=[
+                        prompt_b = step2_user_b.replace("{url}", url).replace("{content}", content[:4000]).replace("{product_analysis_json}", result_a)
+                        
+                        call_b_kwargs = {
+                            "model": params_b["model"],
+                            "response_format": { "type": "json_object" },
+                            "messages": [
                                 {"role": "system", "content": step2_sys_b},
                                 {"role": "user", "content": prompt_b}
                             ]
-                        )
+                        }
+                        if "temperature" in params_b: call_b_kwargs["temperature"] = params_b["temperature"]
+                        if "max_tokens" in params_b: call_b_kwargs["max_tokens"] = params_b["max_tokens"]
+                        if "reasoning_effort" in params_b: call_b_kwargs["reasoning_effort"] = params_b["reasoning_effort"]
+                            
+                        ai_response_b = client.chat.completions.create(**call_b_kwargs)
                         result_b = ai_response_b.choices[0].message.content
                         
                         import json
