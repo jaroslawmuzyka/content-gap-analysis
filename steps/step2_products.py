@@ -44,7 +44,7 @@ Struktura JSON ma wyglądać następująco:
         
         ca1, ca2 = st.columns(2)
         with ca1:
-            step2_temp_a = st.slider("Temperatura (Analiza)", 0.0, 2.0, 0.4, 0.1, key="step2_temp_a")
+            step2_temp_a = st.slider("Temperatura (Analiza)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_a")
         with ca2:
             step2_tokens_a = st.number_input("Max Tokens (Analiza)", 100, 16000, 4000, key="step2_tokens_a")
 
@@ -70,7 +70,7 @@ Struktura JSON:
         with cb1:
             step2_temp_b = st.slider("Temperatura (Frazy SEO)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_b")
         with cb2:
-            step2_tokens_b = st.number_input("Max Tokens (Frazy SEO)", 100, 16000, 2000, key="step2_tokens_b")
+            step2_tokens_b = st.number_input("Max Tokens (Frazy SEO)", 100, 16000, 4000, key="step2_tokens_b")
         
     if st.button("Rozpocznij Analizę", type="primary"):
         if not openai_api_key:

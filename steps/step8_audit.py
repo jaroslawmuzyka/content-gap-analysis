@@ -58,7 +58,7 @@ Format (dokładnie ten układ, każdy klucz MUSI zawierać "status" i "rekomenda
         
         col1, col2 = st.columns(2)
         with col1:
-            step8_temp = st.slider("Temperatura", 0.0, 2.0, 0.2, 0.1, key="step8_temp")
+            step8_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step8_temp")
         with col2:
             step8_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step8_tokens")
 

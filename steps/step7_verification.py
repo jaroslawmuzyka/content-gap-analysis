@@ -41,9 +41,9 @@ Struktura JSON:
             
             col1, col2 = st.columns(2)
             with col1:
-                step7_temp = st.slider("Temperatura", 0.0, 2.0, 0.2, 0.1, key="step7_temp")
+                step7_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step7_temp")
             with col2:
-                step7_tokens = st.number_input("Max Tokens", 100, 16000, 1000, key="step7_tokens")
+                step7_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step7_tokens")
                 
         if st.button("Rozpocznij Weryfikację AI", type="primary"):
             if len(df_accepted) == 0:
