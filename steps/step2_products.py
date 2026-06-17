@@ -21,13 +21,11 @@ def render(openai_api_key):
         manual_df = st.data_editor(default_manual_df, num_rows="dynamic", use_container_width=True)
         
     with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
-        models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
-        
-        st.markdown("### 📝 Prompt 1: Analiza Produktu")
-        template_a = st.radio("Szablon Ustawień (Analiza):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.5, reasoning: medium, temp: 0.2)"], key="template_a")
+        models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3        st.markdown("### 📝 Prompt 1: Analiza Produktu")
+        template_a = st.radio("Szablon Ustawień (Analiza):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.5, reasoning: medium, temp: 0)"], key="template_a")
         
         if template_a == "Domyślny (Ręczne parametry)":
-            step2_model_a = st.selectbox("Wybierz model dla analizy:", models, index=0, key="step2_model_a")
+            step2_model_a = st.selectbox("Wybierz model dla analizy:", models, index=4, key="step2_model_a")
             ca1, ca2 = st.columns(2)
             with ca1:
                 step2_temp_a = st.slider("Temperatura (Analiza)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_a")
@@ -35,25 +33,37 @@ def render(openai_api_key):
                 step2_tokens_a = st.number_input("Max Tokens (Analiza)", 100, 16000, 4000, key="step2_tokens_a")
             params_a = {"model": step2_model_a, "temperature": step2_temp_a, "max_tokens": step2_tokens_a}
         else:
-            st.info("Zastosowano parametry rekomendowane: model=gpt-5.5, temp=0.2, reasoning_effort=medium.")
-            params_a = {"model": "gpt-5.5", "temperature": 0.2, "reasoning_effort": "medium"}
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.5, temp=0, reasoning_effort=medium.")
+            params_a = {"model": "gpt-5.5", "temperature": 0, "reasoning_effort": "medium"}
 
-        step2_sys_a_def = """Jesteś analitykiem medyczno-kosmetycznym, strategiem contentowym i specjalistą SEO dla produktów zdrowotnych, dermokosmetycznych, kosmetycznych i OTC.
+        step2_sys_a_def = """Jesteś analitykiem medyczno-kosmetycznym, strategiem contentowym i specjalistą SEO dla produktów zdrowotnych, dermokosmetycznych, kosmetycznych, OTC oraz leków bez recepty.
 
-Twoim zadaniem nie jest tylko streszczenie treści strony. Twoim zadaniem jest zbudowanie możliwie pełnej mapy zastosowań produktu: jakie problemy rozwiązuje, z czego te problemy mogą wynikać, w jakich sytuacjach życiowych występują, jakie mają skutki, jakie grupy odbiorców mogą ich doświadczać oraz jakie tematy contentowe można na tej podstawie rozwijać.
+Twoim zadaniem nie jest tylko streszczenie treści strony. Twoim zadaniem jest zbudowanie pełnej mapy zastosowań produktu na podstawie danych ze strony oraz ostrożnych wniosków contentowych.
+
+Najważniejsza zasada:
+Zanim zaczniesz interpretować produkt, MUSISZ najpierw wyodrębnić wszystkie informacje podane wprost na stronie: nazwę produktu, kategorię, status produktu, składniki, wskazania, działanie, przeciwwskazania, grupy odbiorców, sposób użycia, claimy marketingowe, ostrzeżenia i ograniczenia.
+
+Nie wolno pominąć żadnego wskazania, zastosowania ani claimu, które występuje w treści strony.
 
 Zasady bezpieczeństwa i jakości:
 1. Nie wymyślaj właściwości leczniczych produktu.
-2. Oddzielaj informacje wprost podane na stronie od wniosków i hipotez.
-3. Jeżeli coś wynika z wiedzy ogólnej, ale nie jest potwierdzone w treści strony, oznacz to jako "wniosek" albo "hipoteza_contentowa".
-4. Jeżeli dany temat może wymagać weryfikacji medycznej, prawnej, regulacyjnej, z ChPL, ulotką, etykietą lub działem regulatory, ustaw "wymaga_weryfikacji": true.
-5. Nie podawaj dawkowania, instrukcji leczenia ani obietnic skuteczności, jeżeli nie ma ich w treści źródłowej.
-6. Nie sugeruj stosowania produktu poza zakresem, który można racjonalnie uzasadnić opisem, składem, kategorią produktu lub informacjami ze strony.
-7. W przypadku leków, terapii, chorób przewlekłych, ciąży, niemowląt, alergii, ran, infekcji lub skóry uszkodzonej zachowaj szczególną ostrożność.
-8. Odpowiedź musi być wyłącznie poprawnym obiektem JSON. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
-9. Jeżeli brakuje danych, wpisz null, pustą tablicę albo jasno oznacz "brak_danych_w_tresci".
-10. Pisz po polsku, precyzyjnie i konkretnie."""
-        step2_sys_a = st.text_area("System Prompt (Analiza)", value=step2_sys_a_def, height=250, key="step2_sys_a")
+2. Oddzielaj informacje wprost podane na stronie od wniosków i hipotez contentowych.
+3. Każdy problem, wskazanie lub zastosowanie podane wprost na stronie musi znaleźć się w sekcji "wskazania_i_zastosowania".
+4. Jeżeli strona podaje kilka wskazań, przeanalizuj każde osobno.
+5. Nie sprowadzaj produktu do jednego głównego problemu, jeśli strona wymienia więcej zastosowań.
+6. Jeżeli coś wynika z wiedzy ogólnej, ale nie jest potwierdzone w treści strony, oznacz to jako "wniosek" albo "hipoteza_contentowa".
+7. Jeżeli dany temat może wymagać weryfikacji medycznej, prawnej, regulacyjnej, z ChPL, ulotką, etykietą lub działem regulatory, ustaw "wymaga_weryfikacji": true.
+8. Nie podawaj dawkowania, instrukcji leczenia ani obietnic skuteczności, jeżeli nie ma ich w treści źródłowej.
+9. Nie sugeruj stosowania produktu poza zakresem, który można racjonalnie uzasadnić opisem, składem, kategorią produktu lub informacjami ze strony.
+10. W przypadku leków, terapii, chorób przewlekłych, ciąży, niemowląt, alergii, ran, infekcji lub skóry uszkodzonej zachowaj szczególną ostrożność.
+11. Jeżeli produkt jest lekiem, komunikuj to jako istotny fakt i zachowuj większy rygor niż przy kosmetyku.
+12. Jeżeli brakuje danych, wpisz null, pustą tablicę albo "brak_danych_w_tresci".
+13. Odpowiedź musi być wyłącznie poprawnym obiektem JSON. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+14. Pisz po polsku, precyzyjnie i konkretnie.
+
+Kontrola jakości przed odpowiedzią:
+Przed zwróceniem JSON-a sprawdź, czy wszystkie wskazania, zastosowania, składniki, przeciwwskazania i claimy podane w treści strony zostały odnotowane w odpowiednich sekcjach. Jeżeli coś zostało pominięte, uzupełnij JSON przed finalną odpowiedzią."""
+        step2_sys_a = st.text_area("System Prompt (Analiza)", value=step2_sys_a_def, height=350, key="step2_sys_a")
         
         def_user_2_a = """Przeanalizuj opis produktu ze strony internetowej.
 
@@ -64,47 +74,111 @@ Treść strony:
 {content}
 
 Cel analizy:
-Chcę zrozumieć produkt znacznie szerzej niż wynika to z prostego opisu na stronie. Nie interesuje mnie wyłącznie streszczenie typu "produkt pomaga na suchą skórę". Chcę odkryć pełną mapę problemów, przyczyn, skutków, sytuacji użycia, sezonowości, grup odbiorców, kontekstów lifestyle’owych, kontekstów medyczno-kosmetycznych oraz potencjalnych tematów contentowych.
+Chcę zrozumieć produkt znacznie szerzej niż wynika to z prostego opisu na stronie. Nie interesuje mnie wyłącznie streszczenie typu "produkt pomaga na suchą skórę". Chcę odkryć pełną mapę wskazań, problemów, przyczyn, skutków, sytuacji użycia, sezonowości, grup odbiorców, kontekstów lifestyle’owych, kontekstów medyczno-kosmetycznych oraz potencjalnych tematów contentowych.
 
-Analizuj tak, jak product manager, ekspert medyczno-kosmetyczny i strateg SEO jednocześnie.
+Bardzo ważne:
+Najpierw wyodrębnij wszystkie informacje podane wprost w treści strony. Dopiero potem wykonuj interpretację SEO i contentową.
+
+Nie możesz pominąć żadnego wskazania ani zastosowania produktu wymienionego na stronie.
 
 Szukaj zwłaszcza:
-* problemów głównych, na które produkt odpowiada,
-* problemów pobocznych i powiązanych,
-* przyczyn tych problemów,
-* skutków tych problemów,
-* sytuacji życiowych, w których problem się pojawia,
-* sezonowości, np. zima, lato, wiatr, mróz, słońce, klimatyzacja, ogrzewanie,
-* aktywności, np. sport, bieganie, rower, praca fizyczna, podróże,
-* grup odbiorców, np. dzieci, dorośli, seniorzy, osoby aktywne, osoby z wrażliwą skórą,
-* związków przyczynowo-skutkowych, np. leczenie trądziku może wysuszać skórę, więc produkt może być tematem wspierającym regenerację skóry suchej, ale nie leczenie trądziku,
-* tematów edukacyjnych, które nie są oczywiste po pierwszym przeczytaniu strony,
-* tematów zdjęć, grafik i artykułów,
-* ograniczeń, przeciwwskazań i ryzyk komunikacyjnych,
-* tego, czego nie wolno twierdzić bez dodatkowej weryfikacji.
+* nazwy produktu,
+* kategorii produktu,
+* statusu produktu, np. lek, kosmetyk, OTC, dostępny bez recepty,
+* składników aktywnych lub kluczowych,
+* wszystkich wskazań i zastosowań wymienionych na stronie,
+* wszystkich problemów, na które produkt odpowiada,
+* wszystkich chorób, objawów i stanów skóry wymienionych w treści,
+* mechanizmu działania produktu,
+* grup odbiorców,
+* przeciwwskazań i ograniczeń,
+* claimów marketingowych,
+* danych, które mogą być ważne dla SEO, contentu i komunikacji produktowej.
+
+Następnie dla każdego wskazania lub zastosowania wykonaj osobną analizę:
+* jaki problem użytkownika reprezentuje,
+* czy produkt odpowiada na ten problem bezpośrednio czy wspierająco,
+* jakie mogą być przyczyny problemu,
+* jakie mogą być skutki i objawy,
+* jakie sytuacje życiowe mogą prowadzić do tego problemu,
+* jakie są konteksty sezonowe,
+* jakie są konteksty lifestyle’owe,
+* jakie są konteksty medyczno-kosmetyczne,
+* jakie grupy odbiorców mogą mieć ten problem,
+* jakie tematy artykułów można stworzyć,
+* jakie claimy są bezpieczne,
+* jakich claimów należy unikać.
 
 Zwróć wyłącznie poprawny JSON w poniższej strukturze:
 {
-"produkt": {"nazwa": "", "kategoria": "", "typ_produktu": "", "skladniki_aktywne_lub_kluczowe": [], "deklarowane_dzialanie_na_stronie": [], "status_informacji": {"czy_nazwa_jest_podana_w_tresci": true, "czy_sklad_jest_podany_w_tresci": true, "czy_kategoria_jest_podana_w_tresci": true}},
-"glowny_problem": {"opis": "", "problem_medyczny_lub_kosmetyczny": "", "jak_produkt_moze_pomagac_wedlug_tresci": "", "poziom_pewnosci": "wysoki | sredni | niski", "zrodlo": "wprost_z_tresci | wniosek | hipoteza_contentowa"},
-"problemy_powiazane": [{"problem": "", "opis": "", "relacja_do_produktu": "", "czy_produkt_rozwiazuje_problem_bezposrednio": true, "czy_produkt_moze_byc_wsparciem": true, "czego_nie_wolno_sugerowac": "", "poziom_pewnosci": "wysoki | sredni | niski", "zrodlo": "wprost_z_tresci | wniosek | hipoteza_contentowa", "wymaga_weryfikacji": true}],
-"przyczyny_problemow": [{"przyczyna": "", "jaki_problem_powoduje": "", "mechanizm_lub_logika": "", "przyklad": "", "czy_przyczyna_jest_podana_w_tresci": true, "poziom_pewnosci": "wysoki | sredni | niski"}],
-"skutki_i_objawy": [{"skutek_lub_objaw": "", "z_czego_moze_wynikac": "", "jak_laczy_sie_z_produktem": "", "czy_mozna_to_komunikowac_wprost": true, "ryzyko_naduzycia_claimu": "niskie | srednie | wysokie"}],
-"konteksty_uzycia": {
-  "sezonowe": [{"kontekst": "", "pora_roku_lub_warunki": "", "problem": "", "dlaczego_to_wazne": "", "pomysl_na_artykul": "", "pomysl_na_zdjecie_lub_grafike": "", "poziom_pewnosci": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
-  "lifestyle_i_aktywnosc": [{"kontekst": "", "aktywność_lub_sytuacja": "", "problem": "", "zwiazek_z_produktem": "", "pomysl_na_artykul": "", "pomysl_na_zdjecie_lub_grafike": "", "poziom_pewnosci": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
-  "medyczno_kosmetyczne": [{"kontekst": "", "problem_pierwotny": "", "problem_wtorny": "", "zwiazek_przyczynowo_skutkowy": "", "rola_produktu": "", "czego_nie_sugerowac": "", "pomysl_na_artykul": "", "poziom_pewnosci": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
-  "codzienne_sytuacje": [{"sytuacja": "", "problem": "", "rola_produktu": "", "pomysl_na_content": "", "poziom_pewnosci": "wysoki | sredni | niski"}]
+"ekstrakcja_faktow_ze_strony": {
+"nazwa_produktu": "",
+"status_produktu": "lek | lek_bez_recepty | kosmetyk | dermokosmetyk | suplement | wyrob_medyczny | inny | brak_danych_w_tresci",
+"kategoria": "",
+"typ_produktu": "",
+"postac": "",
+"skladniki_aktywne_lub_kluczowe": [{"skladnik": "", "ilosc_lub_stezenie": "", "rola_w_produkcie": "", "zrodlo": "wprost_z_tresci"}],
+"substancje_pomocnicze_lub_istotne_skladniki": [],
+"wskazania_i_zastosowania_wprost": [{"wskazanie": "", "typ": "choroba | objaw | stan_skory | problem_kosmetyczny | zastosowanie | claim_marketingowy | informacja_o_dostepnosci", "dokladne_brzmienie_z_tresci": "", "czy_to_claim_medyczny": true, "poziom_pewnosci": "wysoki"}],
+"deklarowane_dzialanie_na_stronie": [{"dzialanie": "", "mechanizm_lub_opis": "", "dokladne_brzmienie_z_tresci": "", "zrodlo": "wprost_z_tresci"}],
+"grupy_docelowe_wprost": [],
+"przeciwwskazania_wprost": [],
+"ostrzezenia_lub_dzialania_niepozadane_wprost": [],
+"claimy_marketingowe_wprost": [],
+"braki_w_danych_ze_strony": []
 },
-"grupy_docelowe": [{"grupa": "", "dlaczego_moze_potrzebowac_produktu": "", "typowe_sytuacje": [], "potencjalne_obawy": [], "komunikat_marketingowy_bezpieczny": "", "komunikat_ryzykowny_lub_do_unikania": "", "poziom_pewnosci": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
-"ograniczenia_i_przeciwwskazania": {"wprost_z_tresci": [], "potencjalne_do_weryfikacji": [], "grupy_wymagajace_ostroznosci": [], "czego_brakuje_w_tresci_strony": []},
-"mapa_contentowa": [{"temat": "", "intencja_uzytkownika": "informacyjna | poradnikowa | produktowa | porownawcza | sezonowa | problemowa", "problem_ktory_adresuje": "", "przyczyna_lub_kontekst": "", "proponowany_tytul_artykulu": "", "proponowany_h1": "", "sekcje_artykulu": [], "pomysl_na_zdjecie": "", "jak_naturalnie_polaczyc_z_produktem": "", "claimy_bezpieczne": [], "claimy_ryzykowne": [], "priorytet": "wysoki | sredni | niski", "uzasadnienie_priorytetu": ""}],
-"nietypowe_insighty": [{"insight": "", "dlaczego_nie_jest_oczywisty": "", "jak_moze_pomoc_w_seo_lub_content_marketingu": "", "przyklad_wykorzystania": "", "poziom_pewnosci": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
-"luki_na_stronie": [{"luka": "", "dlaczego_to_problem": "", "co_dodac_na_stronie": "", "typ_materialu": "tekst | artykul | FAQ | zdjecie | grafika | sekcja_produktowa | ostrzezenie | linkowanie_wewnetrzne", "priorytet": "wysoki | sredni | niski"}],
-"faq": [{"pytanie": "", "bezpieczna_odpowiedz": "", "czy_wymaga_konsultacji_z_ekspertem": true}],
-"slowa_kluczowe_i_encje": {"problemy": [], "objawy": [], "przyczyny": [], "grupy_docelowe": [], "sytuacje_uzycia": [], "sezonowosc": [], "skladniki": [], "tematy_powiazane": []},
-"rekomendacje_dla_brand_managera": [{"rekomendacja": "", "uzasadnienie": "", "oczekiwany_efekt": "", "priorytet": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
-"podsumowanie": {"najwazniejszy_wniosek": "", "najwieksza_szansa_contentowa": "", "najwieksze_ryzyko_komunikacyjne": "", "co_sprawdzic_przed_publikacja": []}
+"kontrola_pokrycia": {
+"liczba_wykrytych_wskazan_i_zastosowan": 0,
+"czy_kazde_wskazanie_ma_osobna_analize": true,
+"pominiete_elementy_z_tresci": [],
+"uwagi_do_jakosci_ekstrakcji": ""
+},
+"profil_produktu": {
+"krotki_opis": "",
+"glowna_rola_produktu": "",
+"czy_produkt_ma_wiele_zastosowan": true,
+"najwazniejsze_obszary_zastosowan": []
+},
+"analiza_wskazan_i_zastosowan": [
+{
+"wskazanie_lub_zastosowanie": "",
+"status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa",
+"typ_problemu": "medyczny | kosmetyczny | pielegnacyjny | lifestyle | sezonowy | mieszany",
+"opis_problemu": "",
+"jak_produkt_laczy_sie_z_problemem_wedlug_tresci": "",
+"czy_produkt_rozwiazuje_problem_bezposrednio": true,
+"czy_produkt_moze_byc_wsparciem": true,
+"mechanizm_dzialania_powiazany_z_tym_wskazaniem": "",
+"przyczyny_problemu": [{"przyczyna": "", "mechanizm_lub_logika": "", "czy_podana_w_tresci": true, "status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa", "poziom_pewnosci": "wysoki | sredni | niski"}],
+"skutki_i_objawy": [{"objaw_lub_skutek": "", "jak_laczy_sie_z_problemem": "", "czy_podany_w_tresci": true, "czy_mozna_komunikowac_wprost": true, "ryzyko_naduzycia_claimu": "niskie | srednie | wysokie"}],
+"konteksty_sezonowe": [{"kontekst": "", "pora_roku_lub_warunki": "", "dlaczego_to_ma_znaczenie": "", "status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa", "wymaga_weryfikacji": true}],
+"konteksty_lifestyle": [{"sytuacja_lub_aktywnosc": "", "dlaczego_moze_powodowac_problem": "", "jak_polaczyc_z_produktem": "", "status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa", "wymaga_weryfikacji": true}],
+"konteksty_medyczno_kosmetyczne": [{"problem_pierwotny": "", "problem_wtorny": "", "zwiazek_przyczynowo_skutkowy": "", "rola_produktu": "", "czego_nie_sugerowac": "", "status_zrodla": "wprost_z_tresci | wniosek | hipoteza_contentowa", "wymaga_weryfikacji": true}],
+"grupy_docelowe": [{"grupa": "", "dlaczego_moze_dotyczyc_tej_grupy": "", "czy_grupa_podana_w_tresci": true, "typowe_sytuacje": [], "potencjalne_obawy": [], "wymaga_weryfikacji": true}],
+"claimy_bezpieczne": [],
+"claimy_ryzykowne_lub_do_unikania": [],
+"pomysly_na_content": [{"temat": "", "proponowany_tytul": "", "proponowany_h1": "", "intencja": "informacyjna | poradnikowa | produktowa | problemowa | sezonowa | porownawcza", "sekcje_artykulu": [], "jak_naturalnie_polaczyc_z_produktem": "", "pomysl_na_zdjecie_lub_grafike": "", "priorytet": "wysoki | sredni | niski", "uzasadnienie_priorytetu": ""}],
+"poziom_pewnosci": "wysoki | sredni | niski",
+"wymaga_weryfikacji": true
+}
+],
+"problemy_powiazane_niepodane_wprost": [{"problem": "", "opis": "", "relacja_do_produktu": "", "dlaczego_to_nie_jest_wskazanie_wprost": "", "czy_mozna_rozwazac_jako_temat_contentowy": true, "czego_nie_wolno_sugerowac": "", "poziom_pewnosci": "wysoki | sredni | niski", "zrodlo": "wniosek | hipoteza_contentowa", "wymaga_weryfikacji": true}],
+"mapa_contentowa": [{"temat": "", "powiazane_wskazanie_lub_problem": "", "intencja_uzytkownika": "informacyjna | poradnikowa | produktowa | porownawcza | sezonowa | problemowa", "przyczyna_lub_kontekst": "", "proponowany_tytul_artykulu": "", "proponowany_h1": "", "sekcje_artykulu": [], "pomysl_na_zdjecie": "", "jak_naturalnie_polaczyc_z_produktem": "", "claimy_bezpieczne": [], "claimy_ryzykowne": [], "priorytet": "wysoki | sredni | niski", "uzasadnienie_priorytetu": ""}],
+"nietypowe_insighty": [{"insight": "", "powiazane_wskazanie_lub_problem": "", "dlaczego_nie_jest_oczywisty": "", "jak_moze_pomoc_w_seo_lub_content_marketingu": "", "przyklad_wykorzystania": "", "poziom_pewnosci": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
+"luki_na_stronie": [{"luka": "", "powiazane_wskazanie_lub_problem": "", "dlaczego_to_problem": "", "co_dodac_na_stronie": "", "typ_materialu": "tekst | artykul | FAQ | zdjecie | grafika | sekcja_produktowa | ostrzezenie | linkowanie_wewnetrzne", "priorytet": "wysoki | sredni | niski"}],
+"faq": [{"pytanie": "", "powiazane_wskazanie_lub_problem": "", "bezpieczna_odpowiedz": "", "czy_wymaga_konsultacji_z_ekspertem": true}],
+"slowa_kluczowe_i_encje": {"wskazania": [], "problemy": [], "objawy": [], "przyczyny": [], "grupy_docelowe": [], "sytuacje_uzycia": [], "sezonowosc": [], "skladniki": [], "tematy_powiazane": []},
+"ograniczenia_i_przeciwwskazania": {"wprost_z_tresci": [], "potencjalne_do_weryfikacji": [], "grupy_wymagajace_ostroznosci": [], "czego_brakuje_w_tresci_strony": [], "czego_nie_wolno_komunikowac_bez_weryfikacji": []},
+"rekomendacje_dla_brand_managera": [{"rekomendacja": "", "powiazane_wskazanie_lub_problem": "", "uzasadnienie": "", "oczekiwany_efekt": "", "priorytet": "wysoki | sredni | niski", "wymaga_weryfikacji": true}],
+"podsumowanie": {
+"najwazniejszy_wniosek": "",
+"najwazniejsze_wskazania_ze_strony": [],
+"najwieksza_szansa_contentowa": "",
+"najwieksze_ryzyko_komunikacyjne": "",
+"co_sprawdzic_przed_publikacja": []
+}
+}"""
+        step2_user_a = st.text_area("User Prompt (Analiza)", value=def_user_2_a, height=350, key="step2_user_a")o_komunikacyjne": "", "co_sprawdzic_przed_publikacja": []}
 }"""
         step2_user_a = st.text_area("User Prompt (Analiza)", value=def_user_2_a, height=350, key="step2_user_a")
         
@@ -288,29 +362,32 @@ Zwróć wyłącznie JSON w strukturze:
                             if "podsumowanie" in data_a:
                                 p = data_a["podsumowanie"]
                                 md_lines.append("### 🎯 Podsumowanie")
-                                md_lines.append(f"- **Wniosek:** {p.get('najwazniejszy_wniosek', '')}")
+                                md_lines.append(f"- **Najważniejszy wniosek:** {p.get('najwazniejszy_wniosek', '')}")
+                                md_lines.append(f"- **Wskazania ze strony:** {', '.join(p.get('najwazniejsze_wskazania_ze_strony', []))}")
                                 md_lines.append(f"- **Szansa contentowa:** {p.get('najwieksza_szansa_contentowa', '')}")
-                                md_lines.append(f"- **Ryzyko:** {p.get('najwieksze_ryzyko_komunikacyjne', '')}")
+                                md_lines.append(f"- **Ryzyko komunikacyjne:** {p.get('najwieksze_ryzyko_komunikacyjne', '')}")
                                 md_lines.append("")
                                 
-                            if "glowny_problem" in data_a:
-                                gp = data_a["glowny_problem"]
-                                md_lines.append(f"**Główny Problem:** {gp.get('opis', '')} ({gp.get('problem_medyczny_lub_kosmetyczny', '')})")
+                            if "ekstrakcja_faktow_ze_strony" in data_a:
+                                ex = data_a["ekstrakcja_faktow_ze_strony"]
+                                md_lines.append("### 🏷 Fakty wyodrębnione z treści")
+                                md_lines.append(f"- **Nazwa:** {ex.get('nazwa_produktu', '')} | **Status:** {ex.get('status_produktu', '')} | **Kategoria:** {ex.get('kategoria', '')}")
+                                md_lines.append(f"- **Wskazania wprost:** " + ", ".join([w.get('wskazanie', '') for w in ex.get('wskazania_i_zastosowania_wprost', []) if isinstance(w, dict)]))
                                 md_lines.append("")
                                 
-                            if "konteksty_uzycia" in data_a:
-                                md_lines.append("### 🌍 Konteksty Użycia")
-                                k = data_a["konteksty_uzycia"]
-                                if "sezonowe" in k and k["sezonowe"]:
-                                    md_lines.append("**Sezonowe:** " + ", ".join([s.get("pora_roku_lub_warunki","") for s in k["sezonowe"] if isinstance(s, dict) and s.get("pora_roku_lub_warunki")]))
-                                if "lifestyle_i_aktywnosc" in k and k["lifestyle_i_aktywnosc"]:
-                                    md_lines.append("**Lifestyle/Aktywność:** " + ", ".join([s.get("aktywność_lub_sytuacja","") for s in k["lifestyle_i_aktywnosc"] if isinstance(s, dict) and s.get("aktywność_lub_sytuacja")]))
-                                if "medyczno_kosmetyczne" in k and k["medyczno_kosmetyczne"]:
-                                    md_lines.append("**Medyczno-Kosmetyczne:** " + ", ".join([s.get("problem_wtorny","") for s in k["medyczno_kosmetyczne"] if isinstance(s, dict) and s.get("problem_wtorny")]))
+                            if "analiza_wskazan_i_zastosowan" in data_a and isinstance(data_a["analiza_wskazan_i_zastosowan"], list):
+                                md_lines.append("### 🔍 Przykładowe Zastosowania i Konteksty")
+                                for a in data_a["analiza_wskazan_i_zastosowan"][:3]:
+                                    if isinstance(a, dict):
+                                        md_lines.append(f"**{a.get('wskazanie_lub_zastosowanie', '')}** (Status źródła: {a.get('status_zrodla', '')})")
+                                        if a.get('konteksty_sezonowe'):
+                                            md_lines.append(f"- Sezonowe: {', '.join([k.get('kontekst','') for k in a['konteksty_sezonowe'] if isinstance(k, dict)])}")
+                                        if a.get('konteksty_lifestyle'):
+                                            md_lines.append(f"- Lifestyle: {', '.join([k.get('sytuacja_lub_aktywnosc','') for k in a['konteksty_lifestyle'] if isinstance(k, dict)])}")
                                 md_lines.append("")
                                 
                             if "mapa_contentowa" in data_a and isinstance(data_a["mapa_contentowa"], list):
-                                md_lines.append("### 📝 Przykładowe Tematy Artykułów")
+                                md_lines.append("### 📝 Przykładowe Tematy Contentowe")
                                 for m in data_a["mapa_contentowa"][:3]:
                                     if isinstance(m, dict):
                                         md_lines.append(f"- **{m.get('proponowany_tytul_artykulu', m.get('temat', ''))}** (Intencja: {m.get('intencja_uzytkownika', '')})")
