@@ -136,7 +136,8 @@ Format (dokładnie ten układ, każdy klucz MUSI zawierać "status" i "rekomenda
                         row_dict["BŁĄD AUDYTU"] = str(e)
                         results_audit.append(row_dict)
                         
-                    my_bar.progress((idx + 1) / len(df_audit), text=f"Zaudytowano {idx+1}/{len(df_audit)}")
+                    progress_value = min(1.0, (idx + 1) / len(df_audit))
+                    my_bar.progress(progress_value, text=f"Zaudytowano {idx+1}/{len(df_audit)}")
                 
                 df_audited = pd.DataFrame(results_audit)
                 st.session_state.df_audited = df_audited

@@ -122,7 +122,8 @@ Struktura JSON:
                         except Exception as e:
                             st.warning(f"Błąd OpenAI przy wierszu {idx}: {e}")
                             
-                        my_bar.progress((idx + 1) / len(df_gap), text=f"Przeanalizowano {idx+1}/{len(df_gap)} wierszy.")
+                        progress_value = min(1.0, (idx + 1) / len(df_gap))
+                        my_bar.progress(progress_value, text=f"Przeanalizowano {idx+1}/{len(df_gap)} wierszy.")
                     
                     if results:
                         df_results = pd.DataFrame(results)

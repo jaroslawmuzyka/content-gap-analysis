@@ -115,7 +115,8 @@ Struktura JSON:
                         row_dict["Weryfikacja Uzasadnienie"] = ""
                         results_verified.append(row_dict)
                         
-                    my_bar.progress((idx + 1) / len(df_accepted), text=f"Weryfikacja {idx+1}/{len(df_accepted)}...")
+                    progress_value = min(1.0, (idx + 1) / len(df_accepted))
+                    my_bar.progress(progress_value, text=f"Weryfikacja {idx+1}/{len(df_accepted)}...")
                 
                 df_verified = pd.DataFrame(results_verified)
                 st.session_state.df_verified_results = df_verified

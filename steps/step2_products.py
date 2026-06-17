@@ -135,7 +135,8 @@ Struktura JSON ma wyglądać następująco:
                 except Exception as e:
                     st.error(f"Błąd analizy {url}: {e}")
                     
-                my_bar.progress((idx + 1) / len(items_to_analyze), text=f"Przeanalizowano {idx+1} z {len(items_to_analyze)} produktów.")
+                progress_value = min(1.0, (idx + 1) / len(items_to_analyze))
+                my_bar.progress(progress_value, text=f"Przeanalizowano {idx+1} z {len(items_to_analyze)} produktów.")
                 
             st.session_state.product_analysis = product_analysis
             st.success("Analiza zakończona!")
