@@ -180,8 +180,6 @@ Zwróć wyłącznie poprawny JSON w poniższej strukturze:
 "co_sprawdzic_przed_publikacja": []
 }
 }"""
-        step2_user_a = st.text_area("User Prompt (Analiza)", value=def_user_2_a, height=350, key="step2_user_a")o_komunikacyjne": "", "co_sprawdzic_przed_publikacja": []}
-}"""
         step2_user_a = st.text_area("User Prompt (Analiza)", value=def_user_2_a, height=350, key="step2_user_a")
         
         st.markdown("---")
