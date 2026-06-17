@@ -28,14 +28,15 @@ def render(openai_api_key):
         template_all = st.radio("Szablon Ustawień:", ["Domyślny (Ręczne parametry)", "Rekomendowany (Kaskada GPT-5.5 -> GPT-5.4-mini)"], index=1, key="template_all")
         
         if template_all == "Rekomendowany (Kaskada GPT-5.5 -> GPT-5.4-mini)":
-            st.info("Zastosowano kaskadę 4 promptów (wg. nowych zaleceń).")
+            st.info("Zastosowano kaskadę 5 promptów (wg. nowych zaleceń).")
             params_1 = {"model": "gpt-5.5", "temperature": 0.0, "max_tokens": 16000, "reasoning_effort": "medium"}
             params_2 = {"model": "gpt-5.5", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "medium"}
             params_3 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
             params_4 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
+            params_5 = {"model": "gpt-5.5", "temperature": 0.0, "max_tokens": 16000, "reasoning_effort": "medium"}
         else:
-            st.warning("Ustawiasz parametry ręcznie dla każdego z 4 promptów.")
-            t1p, t2p, t3p, t4p = st.tabs(["Parametry P1", "Parametry P2", "Parametry P3", "Parametry P4"])
+            st.warning("Ustawiasz parametry ręcznie dla każdego z 5 promptów.")
+            t1p, t2p, t3p, t4p, t5p = st.tabs(["Parametry P1", "Parametry P2", "Parametry P3", "Parametry P4", "Parametry P5"])
             with t1p:
                 m1 = st.selectbox("Model P1", models_list, index=models_list.index("gpt-5.4-mini"), key="m1")
                 t1 = st.slider("Temp P1", 0.0, 2.0, 0.0, 0.1, key="t1")
@@ -56,6 +57,11 @@ def render(openai_api_key):
                 t4 = st.slider("Temp P4", 0.0, 2.0, 0.1, 0.1, key="t4")
                 r4 = st.selectbox("Reasoning P4", reasoning_efforts, index=0, key="r4")
                 params_4 = {"model": m4, "temperature": t4, "max_tokens": 16000, "reasoning_effort": r4}
+            with t5p:
+                m5 = st.selectbox("Model P5", models_list, index=models_list.index("gpt-5.5"), key="m5")
+                t5 = st.slider("Temp P5", 0.0, 2.0, 0.0, 0.1, key="t5")
+                r5 = st.selectbox("Reasoning P5", reasoning_efforts, index=1, key="r5")
+                params_5 = {"model": m5, "temperature": t5, "max_tokens": 16000, "reasoning_effort": r5}
 
         # PROMPT 1
         sys_1_def = """Jesteś rygorystycznym ekstraktorem danych produktowych dla produktów zdrowotnych, kosmetycznych, dermokosmetycznych, OTC, leków bez recepty i wyrobów medycznych.
@@ -659,7 +665,225 @@ Zwróć wyłącznie JSON:
 ]
 }"""
 
-        t1, t2, t3, t4 = st.tabs(["1. Ekstrakcja", "2. Rozszerzona", "3. Frazy z Faktów", "4. Frazy z Analizy"])
+        # PROMPT 5
+        sys_5_def = """Jesteś strategiem SEO, analitykiem Content Gap, redaktorem naczelnym i ekspertem medyczno-kosmetycznym dla produktów zdrowotnych, kosmetycznych, dermokosmetycznych, OTC oraz leków bez recepty.
+
+Twoim zadaniem jest przygotowanie skonsolidowanego kontekstu produktu, który później zostanie użyty przez inny model do oceny, czy temat znaleziony u konkurencji można bezpiecznie i sensownie opisać na blogu lub stronie producenta.
+
+Nie tworzysz tekstu marketingowego. Nie tworzysz JSON-a. Nie generujesz seed keywords. Nie piszesz artykułu.
+
+Tworzysz praktyczny, decyzyjny brief produktu, który pomaga ocenić:
+* do jakich tematów produkt pasuje bezpośrednio,
+* do jakich tematów pasuje tylko warunkowo,
+* do jakich tematów nie należy go naciągać,
+* jakie problemy użytkownika produkt realnie adresuje,
+* jakie claimy są bezpieczne,
+* jakie claimy są ryzykowne,
+* kiedy temat konkurencji powinien zostać zaakceptowany,
+* kiedy powinien zostać odrzucony.
+
+Kontekst musi być zrozumiały dla modelu, który później będzie miał tylko:
+* URL konkurencji,
+* Title konkurencji,
+* ten kontekst produktu.
+
+Dlatego pisz jasno, konkretnie i decyzyjnie.
+
+Zasady:
+1. Nie zwracaj JSON-a.
+2. Nie używaj bloków kodu.
+3. Pisz po polsku.
+4. Używaj nagłówków i list punktowanych.
+5. Nie pisz zbyt literacko ani marketingowo.
+6. Nie kopiuj całych analiz 1:1 — skonsoliduj je.
+7. Nie dodawaj wiedzy, której nie da się uzasadnić faktami produktu lub bezpiecznym wnioskiem.
+8. Wyraźnie oddzielaj:
+   * fakty ze strony,
+   * bezpieczne wnioski,
+   * tematy warunkowe,
+   * tematy ryzykowne,
+   * tematy do odrzucenia.
+9. Jeśli produkt łagodzi objawy choroby, nie pisz, że leczy chorobę.
+10. Jeśli produkt wspiera regenerację, nawilżenie, natłuszczanie lub ochronę skóry, nie zmieniaj tego w claim leczenia chorób.
+11. Przy chorobach, dzieciach, niemowlętach, ciąży, ranach, infekcjach, alergiach, przeciwwskazaniach i działaniach niepożądanych zachowaj szczególną ostrożność.
+12. Jeżeli temat wymaga weryfikacji medycznej, prawnej, regulatory, ChPL, ulotki lub etykiety, zaznacz to wyraźnie.
+13. Brief ma pomagać później odrzucać luźno powiązane tematy, dlatego jasno napisz, czego nie akceptować.
+14. Tematy mają być opisane na poziomie problemów i intencji użytkownika, a nie jako lista słów kluczowych.
+15. Każde zastosowanie produktu podane wprost w danych wejściowych musi zostać uwzględnione.
+16. Jeżeli produkt ma kilka zastosowań, nie sprowadzaj go do jednego problemu.
+17. Output powinien być możliwie kompletny, ale nie rozwlekły. Ma być użyteczny jako `{products_context}` w kolejnym promptcie."""
+
+        usr_5_def = """Przygotuj skonsolidowany kontekst produktu do późniejszej analizy Content Gap.
+
+Dane wejściowe:
+
+Podstawowa ekstrakcja faktów ze strony produktu:
+{product_facts_json}
+
+Pogłębiona analiza produktu:
+{expanded_product_analysis_json}
+
+Cel:
+Chcę otrzymać tekstowy `{products_context}`, który będzie później podstawiany do promptu analizującego URL i Title konkurencji.
+
+Ten kontekst ma pomóc innemu modelowi bardzo rygorystycznie ocenić, czy temat konkurencji jest:
+* mocno zgodny z produktem,
+* tylko warunkowo zgodny,
+* luźno powiązany,
+* albo powinien zostać odrzucony.
+
+Nie pisz o tym, że kontekst będzie porównywany z konkurencją. Po prostu przygotuj brief produktu w taki sposób, aby jasno wynikało:
+* na jakie tematy produkt pasuje,
+* na jakie tematy nie pasuje,
+* gdzie są granicę komunikacji.
+
+Zwróć tekst w poniższej strukturze:
+
+# Kontekst produktu do oceny tematów contentowych
+
+## 1. Produkt
+Podaj:
+* nazwę produktu,
+* URL produktu, jeśli jest dostępny w danych,
+* status produktu,
+* typ i postać produktu,
+* kategorię,
+* najważniejsze składniki aktywne lub kluczowe,
+* krótką rolę produktu.
+Pisz konkretnie. Nie twórz opisu marketingowego.
+
+## 2. Wskazania i zastosowania podane wprost
+Wypisz wszystkie wskazania, zastosowania, problemy, choroby, objawy i stany skóry podane wprost w danych.
+Dla każdego elementu podaj:
+* nazwę wskazania lub zastosowania,
+* czy jest to choroba, objaw, stan skóry, problem pielęgnacyjny, mechanizm czy claim,
+* jak produkt jest z nim powiązany,
+* czy komunikacja wymaga ostrożności.
+Nie pomijaj żadnego wskazania z danych wejściowych.
+
+## 3. Problemy, które produkt adresuje bezpośrednio
+Wypisz problemy, dla których produkt jest bezpośrednio dopasowany według danych źródłowych.
+Dla każdego problemu podaj:
+* problem użytkownika,
+* rola produktu,
+* bezpieczny sposób komunikacji,
+* przykładowe typy tematów, które byłyby zgodne,
+* czego nie należy obiecywać.
+To są tematy, które powinny być traktowane jako najmocniej zgodne z produktem.
+
+## 4. Problemy, które produkt może wspierać pośrednio
+Wypisz problemy i konteksty, które są powiązane z produktem, ale nie powinny być traktowane jako główne wskazanie.
+Dla każdego podaj:
+* problem pierwotny,
+* problem wtórny lub skutek, z którym produkt może się łączyć,
+* dlaczego związek jest pośredni,
+* jak bezpiecznie zawęzić temat,
+* czego nie sugerować.
+Przykładowa logika: Jeżeli produkt może wspierać suchość skóry po jakiejś terapii, to bezpieczny temat powinien dotyczyć suchości skóry, a nie leczenia choroby pierwotnej.
+
+## 5. Mechanizm działania jako podstawa dopasowania tematów
+Wyjaśnij krótko, jak działa produkt według danych.
+Uwzględnij:
+* co robi na poziomie skóry lub naskórka,
+* jaki problem użytkownika to adresuje,
+* jakie tematy mogą wynikać z tego mechanizmu,
+* jakich wniosków nie należy z tego mechanizmu wyciągać.
+Ta sekcja ma pomagać rozpoznawać tematy powiązane z mechanizmem działania, np. bariera skóry, utrata wody, regeneracja, natłuszczenie, nawilżenie — ale tylko jeśli wynikają z danych.
+
+## 6. Grupy odbiorców istotne dla produktu
+Wypisz tylko te grupy odbiorców, które wynikają z danych albo są mocno uzasadnionym wnioskiem.
+Dla każdej grupy podaj:
+* dlaczego może być istotna,
+* z jakim problemem przychodzi,
+* czy wynika wprost z danych czy z wniosku,
+* jakie tematy można rozważyć,
+* jakie ryzyka komunikacyjne występują.
+Nie dodawaj grup odbiorców luźno powiązanych.
+
+## 7. Naturalne konteksty tematyczne
+Wypisz konteksty, w których produkt naturalnie pasuje do problemu użytkownika.
+Podziel je na:
+* medyczno-kosmetyczne,
+* pielęgnacyjne,
+* codzienne,
+* sezonowe,
+* lifestyle’owe.
+Przy każdym kontekście podaj:
+* z którym wskazaniem lub mechanizmem się łączy,
+* czy jest to mocne, średnie czy słabe dopasowanie,
+* czy wymaga ostrożności.
+Nie dodawaj kontekstów, które są zbyt ogólne, np. samo „zdrowie”, „sport”, „lato”, „zima”, jeśli nie wynikają jasno z problemu produktu.
+
+## 8. Tematy mocno zgodne z produktem
+Wypisz obszary tematyczne, które można uznać za mocno zgodne z produktem.
+Dla każdego obszaru napisz:
+* dlaczego pasuje,
+* z którym wskazaniem lub działaniem produktu się łączy,
+* jaka intencja użytkownika jest tu naturalna,
+* czy temat może być traktowany jako bezpośrednio dopasowany.
+To są obszary, przy których późniejsza ocena powinna łatwiej akceptować temat, jeśli URL lub Title jasno wskazuje poradnikowy charakter.
+
+## 9. Tematy zgodne warunkowo
+Wypisz tematy, które można rozważać tylko wtedy, gdy są odpowiednio zawężone.
+Dla każdego tematu podaj:
+* dlaczego jest warunkowy,
+* jaki zakres byłby bezpieczny,
+* jaki zakres byłby naciągany,
+* czy wymaga weryfikacji.
+To są tematy, które nie powinny być automatycznie akceptowane. Muszą mieć w URL-u lub Title jasny związek z problemem, który produkt rzeczywiście adresuje.
+
+## 10. Tematy do odrzucenia lub naciągane
+Wypisz tematy, które należy odrzucać, jeśli pojawią się jako zbyt luźno powiązane z produktem.
+Dla każdego tematu podaj:
+* dlaczego nie pasuje,
+* jaki claim byłby nadużyciem,
+* czy istnieje bezpieczniejsze zawężenie tematu.
+Uwzględnij szczególnie:
+* choroby, których produkt nie leczy według danych,
+* problemy pierwotne, wobec których produkt może być co najwyżej wsparciem skutku,
+* tematy zbyt ogólne,
+* tematy lifestyle’owe bez jasnego związku z produktem,
+* zastosowania poza zakresem danych,
+* claimy o leczeniu, których nie ma w danych.
+
+## 11. Reguły akceptacji tematów
+Napisz praktyczne reguły decyzyjne.
+Podziel je na:
+### Akceptuj, jeśli:
+Wypisz warunki, przy których temat jest mocno zgodny z produktem.
+### Akceptuj warunkowo, jeśli:
+Wypisz warunki, przy których temat może być rozważony, ale wymaga zawężenia lub ostrożności.
+### Odrzuć, jeśli:
+Wypisz warunki, przy których temat jest zbyt luźny, ryzykowny albo niezgodny z produktem.
+
+## 12. Bezpieczne claimy i komunikaty
+Wypisz, jak można bezpiecznie mówić o produkcie.
+Podaj:
+* bezpieczne sformułowania,
+* bezpieczne kierunki komunikacji,
+* neutralne określenia roli produktu,
+* komunikaty wymagające ostrożności.
+Nie twórz obietnic skuteczności, jeśli nie wynikają z danych.
+
+## 13. Claimy ryzykowne i komunikaty do unikania
+Wypisz, czego nie należy sugerować.
+Uwzględnij:
+* leczenie chorób, jeśli produkt tylko łagodzi objawy,
+* obietnice pełnego rozwiązania problemu,
+* stosowanie poza zakresem danych,
+* twierdzenia o bezpieczeństwie dla grup, których nie potwierdzają dane,
+* porównania z konkurencją bez podstawy,
+* claims wymagające weryfikacji regulatory.
+
+## 14. Najważniejsze granice dopasowania
+Napisz krótkie, decyzyjne podsumowanie:
+* produkt jest mocno dopasowany do tematów związanych z...
+* produkt jest warunkowo dopasowany do tematów związanych z...
+* produkt nie powinien być łączony z tematami dotyczącymi...
+* największe ryzyko polega na...
+* najbezpieczniej traktować produkt jako..."""
+
+        t1, t2, t3, t4, t5 = st.tabs(["1. Ekstrakcja", "2. Rozszerzona", "3. Frazy z Faktów", "4. Frazy z Analizy", "5. Kontekst CG"])
         with t1:
             step2_sys_1 = st.text_area("System (P1)", value=sys_1_def, height=200, key="s1")
             step2_user_1 = st.text_area("User (P1)", value=usr_1_def, height=200, key="u1")
@@ -672,8 +896,11 @@ Zwróć wyłącznie JSON:
         with t4:
             step2_sys_4 = st.text_area("System (P4)", value=sys_4_def, height=200, key="s4")
             step2_user_4 = st.text_area("User (P4)", value=usr_4_def, height=200, key="u4")
+        with t5:
+            step2_sys_5 = st.text_area("System (P5)", value=sys_5_def, height=200, key="s5")
+            step2_user_5 = st.text_area("User (P5)", value=usr_5_def, height=200, key="u5")
 
-    if st.button("Rozpocznij Kaskadę 4 Promptów", type="primary"):
+    if st.button("Rozpocznij Kaskadę 5 Promptów", type="primary"):
         if not openai_api_key:
             st.error("Wymagany klucz API OpenAI.")
         else:
@@ -757,6 +984,14 @@ Zwróć wyłącznie JSON:
                         if "reasoning_effort" in params_4: call_4_kwargs["reasoning_effort"] = params_4["reasoning_effort"]
                         r4 = client.chat.completions.create(**call_4_kwargs).choices[0].message.content
                         
+                        # --- PROMPT 5 ---
+                        prompt_5 = step2_user_5.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2)
+                        call_5_kwargs = {"model": params_5["model"], "messages": [{"role": "system", "content": step2_sys_5}, {"role": "user", "content": prompt_5}]}
+                        if "temperature" in params_5: call_5_kwargs["temperature"] = params_5["temperature"]
+                        if "max_tokens" in params_5: call_5_kwargs["max_tokens"] = params_5["max_tokens"]
+                        if "reasoning_effort" in params_5: call_5_kwargs["reasoning_effort"] = params_5["reasoning_effort"]
+                        r5 = client.chat.completions.create(**call_5_kwargs).choices[0].message.content
+                        
                         try:
                             d1 = json.loads(r1)
                             d2 = json.loads(r2)
@@ -804,7 +1039,8 @@ Zwróć wyłącznie JSON:
                             "json1": d1 if 'd1' in locals() else {},
                             "json2": d2 if 'd2' in locals() else {},
                             "json3": d3 if 'd3' in locals() else {},
-                            "json4": d4 if 'd4' in locals() else {}
+                            "json4": d4 if 'd4' in locals() else {},
+                            "products_context": r5 if 'r5' in locals() else ""
                         })
                     else:
                         st.warning(f"Brak zawartości do analizy dla {url}")
@@ -859,6 +1095,12 @@ Zwróć wyłącznie JSON:
                 st.write(f"Wygenerowano łącznie **{len(seed_kw)}** unikalnych seed keywords.")
                 if seed_kw:
                     st.write(", ".join(seed_kw[:20]) + ("..." if len(seed_kw)>20 else ""))
+                
+                st.markdown("### 📝 Kontekst Content Gap (P5)")
+                ctx = item.get("products_context", "")
+                if ctx:
+                    with st.expander("Zobacz wygenerowany kontekst produktu"):
+                        st.markdown(ctx)
                 
                 st.markdown("### 📦 Pełne surowe dane (JSON)")
                 if j1:

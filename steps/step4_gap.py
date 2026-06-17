@@ -26,86 +26,86 @@ def render(openai_api_key):
             st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=low.")
             params_4 = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "low"}
         
-        step4_sys_def = """Jesteś ekspertem SEO i analitykiem Content Gap dla e-commerce oraz marek medycznych, kosmetycznych, dermokosmetycznych i OTC.
+        step4_sys_def = """Jesteś ekspertem SEO i rygorystycznym analitykiem Content Gap dla produktów zdrowotnych, kosmetycznych, dermokosmetycznych, OTC oraz leków bez recepty.
 
-Twoim zadaniem jest bardzo rygorystyczna ocena, czy dana strona konkurencji prawdopodobnie nadaje się jako inspiracja do stworzenia artykułu poradnikowego na stronie klienta.
+Twoim zadaniem jest ocena, czy temat strony konkurencji pasuje do produktu klienta na podstawie:
+* URL-a konkurencji,
+* Title konkurencji,
+* kontekstu produktu klienta.
 
-Masz dostęp wyłącznie do URL-a oraz Title strony konkurencji. Nie znasz pełnej treści strony. Nie wolno Ci zakładać, że na stronie znajduje się coś, czego nie da się wywnioskować z URL-a lub Title.
+Masz dostęp wyłącznie do URL-a i Title strony konkurencji. Nie znasz pełnej treści strony. Nie wolno Ci zakładać, że strona zawiera informacje, których nie da się wywnioskować z URL-a lub Title.
 
-Oceniaj konserwatywnie:
-* jeśli strona wyraźnie wygląda na artykuł, poradnik, blog lub treść edukacyjną — możesz zaakceptować,
-* jeśli wygląda na kategorię sklepu, kartę produktu, listing, ranking, stronę ofertową, aptekę, forum, tag, paginację lub stronę główną — odrzuć,
-* jeśli typ strony jest niejasny — odrzuć,
-* jeśli temat jest tylko luźno powiązany z produktem klienta — odrzuć,
-* jeśli produkt klienta nie odpowiada bezpośrednio na problem z Title lub URL — odrzuć,
-* jeśli artykuł wymagałby naciągania powiązania z produktem — odrzuć,
-* jeśli temat wymagałby sugerowania działania produktu, którego nie potwierdza kontekst produktów klienta — odrzuć.
+Najważniejsza zasada:
+Używaj `{products_context}` jako głównego źródła decyzji. To on określa, do jakich tematów produkt pasuje, do jakich pasuje warunkowo, a do jakich nie należy go naciągać.
 
-Domyślna decyzja to "ODRZUCAM". Akceptuj tylko mocne, oczywiste dopasowania.
+Oceniaj bardzo rygorystycznie i konserwatywnie.
 
-Ważne:
-* Nie oceniaj, czy temat jest ogólnie ciekawy.
-* Nie oceniaj, czy konkurencja jest silna.
-* Nie oceniaj potencjału ruchu.
-* Oceniaj wyłącznie, czy na podstawie URL-a i Title można stworzyć bezpieczny, poradnikowy artykuł prowadzący do jednego z produktów klienta.
-* Jeżeli produkt może wspierać tylko skutek problemu, ale nie problem pierwotny, zaakceptuj wyłącznie wtedy, gdy Title lub URL jasno wskazuje na ten skutek.
-* Przykład: jeśli produkt pomaga na suchą skórę, a Title dotyczy trądziku, odrzuć. Możesz zaakceptować tylko wtedy, gdy Title lub URL dotyczy przesuszenia skóry po terapii przeciwtrądzikowej.
-* Zwróć wyłącznie poprawny JSON. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em."""
+Decyzja ma odpowiedzieć na jedno pytanie:
+Czy temat wynikający z URL-a i Title można bezpiecznie oraz naturalnie powiązać z jednym z produktów klienta?
+
+Zasady akceptacji:
+1. Zwróć "PASUJE" tylko wtedy, gdy URL lub Title wyraźnie wskazuje temat, który jest mocno zgodny z produktem według `{products_context}`.
+2. Możesz zwrócić "PASUJE" dla tematu warunkowego tylko wtedy, gdy URL lub Title jasno zawęża temat do problemu, skutku, objawu albo potrzeby, którą produkt rzeczywiście adresuje.
+3. Jeżeli produkt wspiera objaw lub skutek problemu, ale nie problem pierwotny, zaakceptuj tylko wtedy, gdy URL lub Title dotyczy tego objawu lub skutku.
+4. Jeżeli produkt łagodzi objawy choroby, można zaakceptować temat o objawach tej choroby, ale nie temat sugerujący leczenie choroby, jeśli nie wynika to z `{products_context}`.
+5. Jeżeli temat jest poradnikowy, edukacyjny lub problemowy i mieści się w granicach produktu, możesz zaakceptować.
+6. Jeżeli istnieje kilka produktów, wybierz ten, który jest najlepiej dopasowany.
+
+Zasady odrzucenia:
+1. Zwróć "NIE_PASUJE", jeśli temat jest tylko luźno powiązany z produktem.
+2. Zwróć "NIE_PASUJE", jeśli temat wymagałby naciągania właściwości produktu.
+3. Zwróć "NIE_PASUJE", jeśli temat dotyczy problemu pierwotnego, którego produkt nie rozwiązuje ani nie wspiera według `{products_context}`.
+4. Zwróć "NIE_PASUJE", jeśli URL lub Title sugeruje kategorię sklepu, kartę produktu, listing, ranking, porównywarkę, stronę ofertową, aptekę, forum, tag, paginację albo stronę główną.
+5. Zwróć "NIE_PASUJE", jeśli typ strony lub temat jest niejasny.
+6. Zwróć "NIE_PASUJE", jeśli na podstawie samego URL-a i Title nie da się pewnie stwierdzić dopasowania.
+7. Zwróć "NIE_PASUJE", jeśli temat wymagałby ryzykownego claimu medycznego, którego nie potwierdza `{products_context}`.
+
+Domyślna decyzja:
+Jeśli masz wątpliwość, wybierz "NIE_PASUJE".
+
+Nie oceniaj:
+* potencjału ruchu,
+* siły konkurencji,
+* jakości strony konkurencji,
+* opłacalności tworzenia treści,
+* pełnej treści strony, bo jej nie znasz.
+
+Odpowiadaj wyłącznie poprawnym JSON-em. Nie dodawaj markdowna, komentarzy ani tekstu poza JSON-em."""
         step4_sys = st.text_area("System Prompt", value=step4_sys_def, height=300, key="step4_sys")
         
-        def_user_4 = """Zadanie: analiza Content Gap na podstawie ograniczonych danych.
+        def_user_4 = """Zadanie: decyzja, czy temat strony konkurencji pasuje do produktu klienta.
 
 Dane strony konkurencji:
+
 URL:
 {target_url}
 
 Title:
 {target_title}
 
-Produkty klienta:
+Kontekst produktów klienta:
 {products_context}
 
 Cel:
-Oceń bardzo rygorystycznie, czy ta strona konkurencji prawdopodobnie jest artykułem poradnikowym, blogowym lub edukacyjnym, który nadaje się na inspirację do wpisu na naszej stronie i może naturalnie prowadzić do sprzedaży jednego z produktów klienta.
+Oceń, czy temat wynikający z URL-a i Title pasuje do któregoś produktu klienta.
 
-Masz tylko URL i Title, więc nie zakładaj pełnej treści strony.
+Masz odpowiedzieć krótko i decyzyjnie:
+* jeśli pasuje, wskaż produkt i w jednym zdaniu wyjaśnij dlaczego,
+* jeśli nie pasuje, zostaw produkt pusty i w jednym zdaniu wyjaśnij dlaczego.
 
-Zaakceptuj tylko wtedy, gdy jednocześnie:
-* URL lub Title wyraźnie sugeruje artykuł poradnikowy, blogowy albo edukacyjny,
-* temat dotyczy konkretnego problemu użytkownika,
-* problem jest bezpośrednio powiązany z jednym z produktów klienta,
-* produkt klienta może być naturalnym rozwiązaniem lub wsparciem w tym problemie,
-* powiązanie z produktem nie jest naciągane,
-* nie trzeba sugerować właściwości produktu, których nie ma w kontekście produktów klienta.
+Pamiętaj:
+* masz tylko URL i Title,
+* nie znasz pełnej treści strony,
+* nie zgaduj,
+* używaj `{products_context}` jako głównego źródła decyzji,
+* akceptuj tylko jasne dopasowania,
+* odrzucaj tematy luźne, niejasne, zakupowe, listingowe, produktowe albo ryzykowne komunikacyjnie.
 
-Odrzuć, jeśli:
-* URL lub Title wskazuje na kategorię sklepu,
-* URL lub Title wskazuje na kartę produktu,
-* URL lub Title wskazuje na listing produktów,
-* URL lub Title wskazuje na ranking, porównanie ofert, aptekę, forum, tag, paginację lub stronę główną,
-* temat jest zbyt ogólny,
-* temat jest tylko luźno powiązany z produktem,
-* temat dotyczy problemu, którego produkt klienta bezpośrednio nie rozwiązuje,
-* typ strony jest niejasny,
-* brakuje wystarczających danych do pewnej akceptacji.
-
-Zwróć wyłącznie poprawny JSON w strukturze:
+Zwróć wyłącznie poprawny JSON:
 {
-"ocena": "ZAAKCEPTOWANO lub ODRZUCAM",
-"produkt": "adres URL najlepiej dopasowanego produktu klienta albo pusty string",
-"segment": "kategoria, problem lub potrzeba użytkownika, np. sucha skóra, otarcia, regeneracja skóry",
-"prawdopodobny_typ_strony": "artykul_poradnikowy | blog | poradnik | kategoria_sklepu | karta_produktu | listing | ranking | forum | apteka | tag | strona_glowna | inny | niejasne",
-"prawdopodobna_intencja": "informacyjna | poradnikowa | produktowa | transakcyjna | porownawcza | nawigacyjna | niejasna",
-"dopasowanie_do_produktu": "bezposrednie | posrednie | luzne | brak",
-"czy_moze_prowadzic_do_sprzedazy": true,
-"ryzyko_claimow": "niskie | srednie | wysokie",
-"pewnosc_oceny": "wysoka | srednia | niska",
-"sygnaly_z_url": [
-"krótkie sygnały z URL, które wpłynęły na ocenę"
-],
-"sygnaly_z_title": [
-"krótkie sygnały z Title, które wpłynęły na ocenę"
-],
+"ocena": "PASUJE | NIE_PASUJE",
+"produkt": "adres URL lub nazwa najlepiej dopasowanego produktu z kontekstu klienta albo pusty string",
+"segment": "krótki segment/problematyka, np. sucha skóra, odparzenia, łagodzenie objawów łuszczycy, wyprysk, wyprzenia albo pusty string",
 "uzasadnienie": "jedno krótkie zdanie wyjaśniające decyzję"
 }"""
         step4_user = st.text_area("User Prompt", value=def_user_4, height=350, key="step4_user")
@@ -135,9 +135,10 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                         
                     st.success(f"Wczytano {len(df_gap)} unikalnych stron do analizy. Uruchamiam AI w trybie paczkowym...")
                     
-                    products_context = "Lista naszych produktów wraz z analizą:\n"
+                    products_context = "Lista naszych produktów wraz ze skonsolidowanym kontekstem Content Gap:\n"
                     for item in st.session_state.product_analysis:
-                        products_context += f"- Produkt: {item['url']}\n  Analiza: {item['analysis']}\n\n"
+                        ctx = item.get("products_context", item.get("analysis", ""))
+                        products_context += f"- Produkt: {item['url']}\n\nKontekst:\n{ctx}\n\n---\n"
                         
                     progress_text = "Analiza stron konkurencji..."
                     my_bar = st.progress(0, text=progress_text)
@@ -170,17 +171,9 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                             import json
                             try:
                                 data = json.loads(ans)
-                                ocena = data.get("ocena", "ODRZUCAM").upper()
+                                ocena = data.get("ocena", "NIE_PASUJE").upper()
                                 produkt = data.get("produkt", "")
                                 segment = data.get("segment", "")
-                                page_type = data.get("prawdopodobny_typ_strony", "")
-                                intent = data.get("prawdopodobna_intencja", "")
-                                match_level = data.get("dopasowanie_do_produktu", "")
-                                can_sell = data.get("czy_moze_prowadzic_do_sprzedazy", False)
-                                risk = data.get("ryzyko_claimow", "")
-                                confidence = data.get("pewnosc_oceny", "")
-                                sig_url = ", ".join(data.get("sygnaly_z_url", [])) if isinstance(data.get("sygnaly_z_url"), list) else str(data.get("sygnaly_z_url", ""))
-                                sig_title = ", ".join(data.get("sygnaly_z_title", [])) if isinstance(data.get("sygnaly_z_title"), list) else str(data.get("sygnaly_z_title", ""))
                                 uzasadnienie = data.get("uzasadnienie", "")
                                 
                                 row_result = row.to_dict()
@@ -188,31 +181,15 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                                     "AI Verdict": ocena,
                                     "Recommended Product": produkt,
                                     "Segment": segment,
-                                    "Page Type": page_type,
-                                    "Intent": intent,
-                                    "Product Match": match_level,
-                                    "Can Sell": can_sell,
-                                    "Claim Risk": risk,
-                                    "Confidence": confidence,
-                                    "URL Signals": sig_url,
-                                    "Title Signals": sig_title,
                                     "Reasoning": uzasadnienie
                                 })
                                 results.append(row_result)
                             except:
                                 row_result = row.to_dict()
                                 row_result.update({
-                                    "AI Verdict": "BŁĄD/ODRZUCAM",
+                                    "AI Verdict": "BŁĄD/NIE_PASUJE",
                                     "Recommended Product": "Błąd JSON",
                                     "Segment": "",
-                                    "Page Type": "",
-                                    "Intent": "",
-                                    "Product Match": "",
-                                    "Can Sell": "",
-                                    "Claim Risk": "",
-                                    "Confidence": "",
-                                    "URL Signals": "",
-                                    "Title Signals": "",
                                     "Reasoning": ans
                                 })
                                 results.append(row_result)
@@ -227,15 +204,15 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                         st.session_state.df_gap_results = df_results
                         st.success("Analiza zakończona!")
                         
-                        df_accepted = df_results[df_results['AI Verdict'].str.contains("ZAAKCEPTOWANO", na=False)]
-                        df_rejected = df_results[~df_results['AI Verdict'].str.contains("ZAAKCEPTOWANO", na=False)]
+                        df_accepted = df_results[df_results['AI Verdict'] == "PASUJE"]
+                        df_rejected = df_results[df_results['AI Verdict'] != "PASUJE"]
                         
-                        tab1, tab2 = st.tabs(["✅ Zaakceptowane", "❌ Odrzucone"])
+                        tab1, tab2 = st.tabs(["✅ Pasuje", "❌ Nie pasuje"])
                         with tab1:
-                            st.write(f"Zaakceptowano: {len(df_accepted)}")
+                            st.write(f"Pasuje: {len(df_accepted)}")
                             st.dataframe(df_accepted)
                         with tab2:
-                            st.write(f"Odrzucono: {len(df_rejected)}")
+                            st.write(f"Nie pasuje: {len(df_rejected)}")
                             st.dataframe(df_rejected)
                         
                         st.download_button(
