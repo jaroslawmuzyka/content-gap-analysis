@@ -22,9 +22,10 @@ def render(openai_api_key):
         
     with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
         models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
-        step2_model = st.selectbox("Wybierz model OpenAI:", models, index=0, key="step2_model")
         
-        step2_sys = st.text_area("System Prompt", value="Jesteś ekspertem SEO i farmacji/kosmetyki.", key="step2_sys")
+        st.markdown("### 📝 Prompt 1: Analiza Produktu")
+        step2_model_a = st.selectbox("Wybierz model dla analizy:", models, index=0, key="step2_model_a")
+        step2_sys_a = st.text_area("System Prompt (Analiza)", value="Jesteś ekspertem medycznym/kosmetycznym. Odpowiadaj zwięźle.", key="step2_sys_a")
         
         def_user_2_a = """Przeanalizuj treść opisu produktu ze strony internetowej.
 Strona: {url}
@@ -39,7 +40,18 @@ Struktura JSON ma wyglądać następująco:
   "ograniczenia": "Opisz ograniczenia (np. wiek, przeciwwskazania)",
   "przyczyny": "Co powoduje schorzenie i dla kogo produkt jest przeznaczony?"
 }"""
-        step2_user_a = st.text_area("User Prompt 1: Analiza Produktu", value=def_user_2_a, height=200, key="step2_user_a")
+        step2_user_a = st.text_area("User Prompt (Analiza)", value=def_user_2_a, height=200, key="step2_user_a")
+        
+        ca1, ca2 = st.columns(2)
+        with ca1:
+            step2_temp_a = st.slider("Temperatura (Analiza)", 0.0, 2.0, 0.4, 0.1, key="step2_temp_a")
+        with ca2:
+            step2_tokens_a = st.number_input("Max Tokens (Analiza)", 100, 16000, 4000, key="step2_tokens_a")
+
+        st.markdown("---")
+        st.markdown("### 🔍 Prompt 2: Generowanie Fraz SEO")
+        step2_model_b = st.selectbox("Wybierz model dla fraz SEO:", models, index=0, key="step2_model_b")
+        step2_sys_b = st.text_area("System Prompt (Frazy SEO)", value="Jesteś ekspertem SEO.", key="step2_sys_b")
         
         def_user_2_b = """Wygeneruj frazy SEO dla produktu na podstawie jego treści.
 Strona: {url}
@@ -52,13 +64,13 @@ Struktura JSON:
 {
   "seed_keywords": ["fraza 1", "fraza 2"]
 }"""
-        step2_user_b = st.text_area("User Prompt 2: Frazy SEO", value=def_user_2_b, height=180, key="step2_user_b")
+        step2_user_b = st.text_area("User Prompt (Frazy SEO)", value=def_user_2_b, height=180, key="step2_user_b")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            step2_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step2_temp")
-        with col2:
-            step2_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step2_tokens")
+        cb1, cb2 = st.columns(2)
+        with cb1:
+            step2_temp_b = st.slider("Temperatura (Frazy SEO)", 0.0, 2.0, 0.7, 0.1, key="step2_temp_b")
+        with cb2:
+            step2_tokens_b = st.number_input("Max Tokens (Frazy SEO)", 100, 16000, 2000, key="step2_tokens_b")
         
     if st.button("Rozpocznij Analizę", type="primary"):
         if not openai_api_key:
@@ -116,12 +128,12 @@ Struktura JSON:
                         # Call 1
                         prompt_a = step2_user_a.replace("{url}", url).replace("{content}", content[:4000])
                         ai_response_a = client.chat.completions.create(
-                            model=step2_model,
-                            temperature=step2_temp,
-                            max_tokens=step2_tokens,
+                            model=step2_model_a,
+                            temperature=step2_temp_a,
+                            max_tokens=step2_tokens_a,
                             response_format={ "type": "json_object" },
                             messages=[
-                                {"role": "system", "content": step2_sys},
+                                {"role": "system", "content": step2_sys_a},
                                 {"role": "user", "content": prompt_a}
                             ]
                         )
@@ -130,12 +142,12 @@ Struktura JSON:
                         # Call 2
                         prompt_b = step2_user_b.replace("{url}", url).replace("{content}", content[:4000])
                         ai_response_b = client.chat.completions.create(
-                            model=step2_model,
-                            temperature=step2_temp,
-                            max_tokens=step2_tokens,
+                            model=step2_model_b,
+                            temperature=step2_temp_b,
+                            max_tokens=step2_tokens_b,
                             response_format={ "type": "json_object" },
                             messages=[
-                                {"role": "system", "content": step2_sys},
+                                {"role": "system", "content": step2_sys_b},
                                 {"role": "user", "content": prompt_b}
                             ]
                         )
