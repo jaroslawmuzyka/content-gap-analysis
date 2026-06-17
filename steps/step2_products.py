@@ -510,63 +510,86 @@ Zwróć wyłącznie JSON:
 }"""
 
         # PROMPT 4
-        sys_4_def = """Jesteś ekspertem SEO, strategiem contentowym i analitykiem intencji użytkownika dla produktów zdrowotnych, medycznych, kosmetycznych, dermokosmetycznych, OTC i leków bez recepty.
+        sys_4_def = """Jesteś ekspertem SEO i strategiem słów kluczowych. Generujesz seed keywords do Ahrefs Matching Terms na podstawie rozszerzonej analizy produktu.
 
-Twoim zadaniem jest wygenerowanie seed keywords na podstawie rozszerzonej analizy produktu: zastosowań, przyczyn, skutków, grup odbiorców, sezonowości, kontekstów lifestyle’owych i medyczno-kosmetycznych.
+Twoim zadaniem nie jest tworzenie długich fraz contentowych. Twoim zadaniem jest wybranie krótkich, bazowych tematów, które po wpisaniu w Ahrefs mogą odkryć dużą rodzinę zapytań.
 
-To nie są frazy wyłącznie z karty produktu. To są frazy do dalszej analizy SEO, content gap i planowania artykułów.
+Rozszerzona analiza może zawierać sezonowość, sport, pracę fizyczną, grupy odbiorców, skutki uboczne terapii, codzienne sytuacje i konteksty lifestyle’owe. Nie oznacza to, że masz generować frazy z tymi doprecyzowaniami.
+
+Masz wyciągnąć z tej analizy tylko najlepsze, bazowe frazy:
+* problem,
+* objaw,
+* stan skóry,
+* skutek,
+* składnik,
+* mechanizm,
+* choroba, jeśli występuje wprost w danych źródłowych,
+* ogólny typ zastosowania.
+
+Przykłady redukcji:
+* „otarcia przy bieganiu” → „otarcia”
+* „otarcia po rowerze” → „otarcia”
+* „sucha skóra zimą” → „sucha skóra” albo „przesuszona skóra”
+* „regeneracja skóry po mrozie” → „regeneracja skóry”
+* „sucha skóra po terapii przeciwtrądzikowej” → „sucha skóra” albo „przesuszona skóra”
+* „pielęgnacja skóry dziecka zimą” → „pielęgnacja skóry dziecka” tylko jeśli grupa dzieci jest istotna i potwierdzona; w innym przypadku „pielęgnacja skóry”
+* „łagodzenie objawów łuszczycy” → zostaw jako seed, jeśli wynika z faktów produktu
+* „łuszczyca” → dopuszczalne, jeśli choroba występuje wprost w faktach produktu
 
 Zasady:
 1. Zwróć wyłącznie poprawny JSON.
 2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
 3. Wygeneruj maksymalnie {max_keywords} fraz.
-4. Jeśli {max_keywords} nie jest podane, wygeneruj maksymalnie 50 fraz.
-5. Każda fraza ma mieć od 1 do 5 słów.
+4. Jeśli {max_keywords} nie jest podane, wygeneruj maksymalnie 40 fraz.
+5. Każda fraza ma mieć od 1 do 4 słów.
 6. Frazy mają być po polsku.
-7. Frazy mają być naturalne językowo.
-8. Dopuszczalne są krótkie frazy problemowe, sezonowe, lifestyle’owe i poradnikowe.
-9. Nie generuj pełnych tytułów artykułów.
-10. Nie generuj fraz zbyt ogólnych, np. "skóra", "zdrowie", "leczenie".
-11. Nie sugeruj działania produktu, którego nie da się bezpiecznie uzasadnić.
-12. Jeżeli produkt wspiera skutek problemu, a nie problem pierwotny, fraza powinna dotyczyć skutku, nie leczenia problemu pierwotnego.
-13. Przykład: jeśli kontekst dotyczy terapii przeciwtrądzikowej powodującej suchość skóry, wybierz "sucha skóra po kuracji", a nie "lek na trądzik".
-14. Rozdziel frazy według typu: problemowe, objawowe, sezonowe, lifestyle, grupa odbiorców, mechanizm, contentowe.
-15. Kolejność fraz ma oznaczać priorytet."""
+7. Frazy mają być krótkie, bazowe i przydatne w Ahrefs Matching Terms.
+8. Nie generuj fraz pełniących funkcję tytułu artykułu.
+9. Nie generuj pytań.
+10. Nie generuj fraz zbyt długich, sytuacyjnych ani poradnikowych.
+11. Nie generuj pojedynczych ogólników typu „zima”, „lato”, „sport”, „dzieci”, „choroba”, „leczenie”, „skóra”.
+12. Nie generuj fraz, które same w sobie nie mają silnego związku z produktem.
+13. Nie generuj doprecyzowań, które Ahrefs może odkryć samodzielnie na bazie krótszego seedu.
+14. Jeżeli dłuższa fraza jest tylko wariantem krótszego seedu, wybierz krótszy seed.
+15. Możesz dodać nazwę choroby jako seed tylko wtedy, gdy występuje w faktach źródłowych produktu.
+16. Nie dodawaj chorób ani terapii wyłącznie na podstawie luźnych kontekstów contentowych.
+17. Jeżeli produkt może wspierać skutek problemu, a nie problem pierwotny, wybierz seed dotyczący skutku.
+18. Kolejność fraz ma oznaczać priorytet.
+19. Lepiej zwrócić mniej fraz, ale bardzo trafnych, niż dużo szerokich i słabych.
+20. Każda fraza musi mieć wyjaśnienie, dlaczego jest dobrym seedem do Ahrefs."""
         
-        usr_4_def = """Wygeneruj seed keywords SEO na podstawie rozszerzonej analizy produktu.
+        usr_4_def = """Wygeneruj seed keywords SEO do Ahrefs Matching Terms na podstawie rozszerzonej analizy produktu.
 
-Dane wejściowe:
+Rozszerzona analiza produktu:
 {expanded_product_analysis_json}
 
-Opcjonalnie fakty źródłowe produktu:
+Fakty źródłowe produktu:
 {product_facts_json}
 
 Limit fraz:
 {max_keywords}
 
 Cel:
-Chcę otrzymać szerszą listę fraz SEO, które wynikają z analizy zastosowań produktu, związków przyczynowo-skutkowych, sezonowości, grup odbiorców i kontekstów użycia.
+Chcę otrzymać krótkie frazy bazowe, które można wpisać w Ahrefs Matching Terms, aby odkryć powiązane zapytania użytkowników.
 
-Uwzględnij:
-* problemy użytkownika,
-* objawy i skutki,
-* przyczyny problemów,
-* sytuacje życiowe,
-* sezonowość,
-* sport i aktywność,
-* pracę fizyczną,
-* podróże,
-* codzienną pielęgnację,
-* grupy odbiorców,
-* konteksty medyczno-kosmetyczne,
-* tematy, które można bezpiecznie rozwijać contentowo.
+Nie chcę fraz zbyt szczegółowych. Nie chcę fraz typu:
+* odparzenia po bieganiu,
+* sucha skóra zimą,
+* skóra po treningu,
+* pielęgnacja skóry sportowca,
+* jak chronić skórę przed mrozem,
+* objawy suchej skóry u dziecka,
+* maść na otarcia po rowerze.
 
-Nie generuj fraz, które:
-* sugerują leczenie niepotwierdzone w danych,
-* są zbyt ryzykowne medycznie,
-* są zbyt szerokie,
-* są pełnymi tytułami artykułów,
-* powielają istniejące frazy w innej kolejności słów.
+Jeśli wystarczy krótszy seed, wybierz krótszy seed:
+* „odparzenia” zamiast „odparzenia po bieganiu”,
+* „otarcia” zamiast „otarcia przy sporcie”,
+* „sucha skóra” zamiast „sucha skóra zimą”,
+* „regeneracja skóry” zamiast „regeneracja skóry po mrozie”,
+* „bariera skórna” zamiast „regeneracja bariery skórnej zimą”,
+* „olej lniany” zamiast „olej lniany na suchą skórę”.
+
+Uwzględnij wyłącznie frazy, które są mocno powiązane z produktem, jego wskazaniami, mechanizmem działania lub bezpiecznymi zastosowaniami.
 
 Zwróć wyłącznie JSON:
 {
@@ -576,31 +599,31 @@ Zwróć wyłącznie JSON:
 "fraza 3"
 ],
 "keyword_groups": {
-"problemowe": [],
-"objawowe": [],
-"sezonowe": [],
-"lifestyle": [],
-"grupy_odbiorcow": [],
-"medyczno_kosmetyczne": [],
+"wskazania_i_choroby": [],
+"objawy_i_stany_skory": [],
+"skladniki": [],
 "mechanizm_dzialania": [],
-"contentowe": []
+"zastosowania": [],
+"grupy_odbiorcow_tylko_jesli_istotne": []
 },
 "keyword_details": [
 {
 "fraza": "",
-"typ": "problemowa | objawowa | sezonowa | lifestyle | grupa_odbiorcow | medyczno_kosmetyczna | mechanizm | contentowa",
+"typ": "wskazanie | choroba | objaw | stan_skory | skladnik | mechanizm | zastosowanie | grupa_odbiorcow | inne",
 "powiazane_zastosowanie": "",
 "podstawa": "wprost_z_tresci | wniosek | hipoteza_contentowa",
-"intencja": "informacyjna | poradnikowa | problemowa | produktowa | sezonowa | porownawcza",
+"dlaczego_to_dobry_seed_do_ahrefs": "",
+"czy_to_seed_bazowy_zamiast_long_tail": true,
 "priorytet": "wysoki | sredni | niski",
 "ryzyko_claimu": "niskie | srednie | wysokie",
 "uwaga_komunikacyjna": ""
 }
 ],
-"frazy_odrzucone": [
+"frazy_odrzucone_lub_zredukowane": [
 {
-"fraza": "",
-"powod_odrzucenia": ""
+"fraza_pierwotna": "",
+"powod": "zbyt_sytuacyjna | zbyt_długa | zbyt_ogolna | duplikat | niepotwierdzona | lepszy_seed_bazowy",
+"zastapiona_przez": ""
 }
 ]
 }"""
