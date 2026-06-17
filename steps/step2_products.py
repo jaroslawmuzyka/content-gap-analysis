@@ -22,6 +22,9 @@ def render(openai_api_key):
         manual_df = st.data_editor(default_manual_df, num_rows="dynamic", use_container_width=True)
         
     with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
+        models_list = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
+        reasoning_efforts = ["low", "medium", "high"]
+        
         template_all = st.radio("Szablon Ustawień:", ["Domyślny (Ręczne parametry)", "Rekomendowany (Kaskada GPT-5.5 -> GPT-5.4-mini)"], index=1, key="template_all")
         
         if template_all == "Rekomendowany (Kaskada GPT-5.5 -> GPT-5.4-mini)":
@@ -31,11 +34,28 @@ def render(openai_api_key):
             params_3 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
             params_4 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
         else:
-            st.warning("Używasz tych samych parametrów rekomendowanych jako domyślnych (konfiguracja sztywna).")
-            params_1 = {"model": "gpt-5.5", "temperature": 0.0, "max_tokens": 16000, "reasoning_effort": "medium"}
-            params_2 = {"model": "gpt-5.5", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "medium"}
-            params_3 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
-            params_4 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
+            st.warning("Ustawiasz parametry ręcznie dla każdego z 4 promptów.")
+            t1p, t2p, t3p, t4p = st.tabs(["Parametry P1", "Parametry P2", "Parametry P3", "Parametry P4"])
+            with t1p:
+                m1 = st.selectbox("Model P1", models_list, index=models_list.index("gpt-5.5"), key="m1")
+                t1 = st.slider("Temp P1", 0.0, 2.0, 0.0, 0.1, key="t1")
+                r1 = st.selectbox("Reasoning P1", reasoning_efforts, index=1, key="r1")
+                params_1 = {"model": m1, "temperature": t1, "max_tokens": 16000, "reasoning_effort": r1}
+            with t2p:
+                m2 = st.selectbox("Model P2", models_list, index=models_list.index("gpt-5.5"), key="m2")
+                t2 = st.slider("Temp P2", 0.0, 2.0, 0.1, 0.1, key="t2")
+                r2 = st.selectbox("Reasoning P2", reasoning_efforts, index=1, key="r2")
+                params_2 = {"model": m2, "temperature": t2, "max_tokens": 16000, "reasoning_effort": r2}
+            with t3p:
+                m3 = st.selectbox("Model P3", models_list, index=models_list.index("gpt-5.4-mini"), key="m3")
+                t3 = st.slider("Temp P3", 0.0, 2.0, 0.1, 0.1, key="t3")
+                r3 = st.selectbox("Reasoning P3", reasoning_efforts, index=0, key="r3")
+                params_3 = {"model": m3, "temperature": t3, "max_tokens": 16000, "reasoning_effort": r3}
+            with t4p:
+                m4 = st.selectbox("Model P4", models_list, index=models_list.index("gpt-5.4-mini"), key="m4")
+                t4 = st.slider("Temp P4", 0.0, 2.0, 0.1, 0.1, key="t4")
+                r4 = st.selectbox("Reasoning P4", reasoning_efforts, index=0, key="r4")
+                params_4 = {"model": m4, "temperature": t4, "max_tokens": 16000, "reasoning_effort": r4}
 
         # PROMPT 1
         sys_1_def = """Jesteś rygorystycznym ekstraktorem danych produktowych dla produktów zdrowotnych, kosmetycznych, dermokosmetycznych, OTC, leków bez recepty i wyrobów medycznych.
