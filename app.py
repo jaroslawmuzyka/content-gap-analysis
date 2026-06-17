@@ -37,6 +37,8 @@ with st.sidebar:
     step6 = st.button("Krok 6: Struktura Własnej Strony", use_container_width=True)
     step7 = st.button("Krok 7: Weryfikacja Istniejących Treści", use_container_width=True)
     step8 = st.button("Krok 8: Audyt Contentu (AI Readiness)", use_container_width=True)
+    st.markdown("---")
+    step9 = st.button("Krok 9: Globalny Raport (Eksport)", use_container_width=True)
     
     if step1: st.session_state.step = 1
     if step2: st.session_state.step = 2
@@ -46,6 +48,7 @@ with st.sidebar:
     if step6: st.session_state.step = 6
     if step7: st.session_state.step = 7
     if step8: st.session_state.step = 8
+    if step9: st.session_state.step = 9
 
 st.title("📈 Content Gap Analyzer")
 
@@ -73,3 +76,6 @@ elif st.session_state.step == 7:
 elif st.session_state.step == 8:
     from steps import step8_audit
     step8_audit.render(openai_api_key)
+elif st.session_state.step == 9:
+    from steps import step9_export
+    step9_export.render()
