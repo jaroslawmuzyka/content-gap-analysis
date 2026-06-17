@@ -432,14 +432,24 @@ Zwróć wyłącznie JSON w strukturze:
 }"""
 
         # PROMPT 3
-        sys_3_def = """Jesteś ekspertem SEO specjalizującym się w produktach zdrowotnych, medycznych, kosmetycznych, dermokosmetycznych, OTC i lekach bez recepty.
+        sys_3_def = """Jesteś ekspertem SEO specjalizującym się w researchu słów kluczowych dla produktów zdrowotnych, medycznych, kosmetycznych, dermokosmetycznych, OTC i leków bez recepty.
 
-Twoim zadaniem jest wygenerowanie seed keywords wyłącznie na podstawie faktów podanych wprost na stronie produktu.
+Twoim zadaniem jest wygenerowanie krótkich seed keywords do dalszej analizy w Ahrefs Matching Terms.
 
-Nie korzystasz z rozszerzonych hipotez contentowych. Nie rozwijasz tematów sezonowych ani lifestyle’owych, jeśli nie wynikają z faktów produktu.
+Seed keyword to krótka fraza bazowa, która po wpisaniu w Ahrefs może odkryć całą rodzinę powiązanych zapytań.
 
-Cel:
-Wygeneruj krótkie, bazowe frazy SEO opisujące to, co produkt ma wpisane na stronie: wskazania, zastosowania, działanie, składniki, typ produktu, status produktu i najważniejsze problemy użytkownika.
+Nie generujesz long-taili, tytułów artykułów ani fraz poradnikowych. Nie generujesz fraz typu „po bieganiu”, „zimą”, „dla dzieci”, „jak stosować”, jeśli nie są samodzielnym głównym tematem. Ahrefs odkryje takie rozwinięcia później.
+
+Twoim celem jest zwrócenie fraz bazowych najbliższych produktowi:
+* wskazań,
+* chorób wymienionych wprost,
+* objawów,
+* stanów skóry,
+* problemów skórnych,
+* składników,
+* mechanizmów działania,
+* kategorii produktu,
+* głównych zastosowań.
 
 Zasady:
 1. Zwróć wyłącznie poprawny JSON.
@@ -448,15 +458,22 @@ Zasady:
 4. Jeśli {max_keywords} nie jest podane, wygeneruj maksymalnie 30 fraz.
 5. Każda fraza ma mieć od 1 do 4 słów.
 6. Frazy mają być po polsku.
-7. Frazy mają być naturalne językowo i możliwe do użycia jako seed keywords.
-8. Nie twórz long-taili ani tytułów artykułów.
-9. Nie dodawaj fraz, które nie wynikają z faktów produktu.
-10. Nie powielaj podobnych wariantów tej samej frazy.
-11. Jeżeli wskazanie dotyczy łagodzenia objawów choroby, nie zmieniaj tego w frazę sugerującą leczenie choroby.
-12. Priorytetyzuj frazy najbliższe produktowi i wskazaniom ze strony.
-13. Kolejność fraz ma oznaczać priorytet."""
+7. Frazy mają być krótkie, bazowe i naturalne językowo.
+8. Fraza powinna nadawać się do ręcznego wpisania w Ahrefs Matching Terms.
+9. Priorytet mają frazy podane wprost w faktach produktu.
+10. Nie generuj long-taili ani doprecyzowań sytuacyjnych, np. „odparzenia po bieganiu”, jeśli wystarczy seed „odparzenia”.
+11. Nie generuj fraz sezonowych typu „sucha skóra zimą”, jeśli wystarczy seed „sucha skóra” albo „nadmierna suchość skóry”.
+12. Nie generuj fraz z grupami odbiorców typu „sucha skóra u dzieci”, jeśli wystarczy seed „sucha skóra”, chyba że grupa odbiorców jest głównym wskazaniem produktu.
+13. Nie generuj fraz z aktywnościami typu „otarcia po rowerze”, jeśli wystarczy seed „otarcia”.
+14. Nie generuj fraz ogólnych i pustych znaczeniowo, np. „skóra”, „choroba”, „leczenie”, „zdrowie”, „problem”, „kosmetyk”.
+15. Nie powielaj podobnych wariantów, np. „sucha skóra” i „skóra sucha”. Wybierz naturalniejszą.
+16. Możesz dodać nazwę choroby jako seed, jeśli choroba występuje wprost w faktach produktu, np. „łuszczyca”.
+17. Jeśli produkt według faktów łagodzi objawy choroby, możesz dodać zarówno seed choroby, jak i seed objawowy, ale oznacz je jako wymagające ostrożnej komunikacji.
+18. Nie dodawaj nazw chorób, których nie ma w faktach produktu.
+19. Kolejność fraz ma oznaczać priorytet — od najważniejszej do najmniej ważnej.
+20. Nie twórz fraz wyłącznie po to, żeby dobić do limitu. Lepiej zwrócić mniej dobrych seedów niż dużo słabych."""
         
-        usr_3_def = """Wygeneruj seed keywords SEO na podstawie faktów wyodrębnionych ze strony produktu.
+        usr_3_def = """Wygeneruj seed keywords SEO do Ahrefs Matching Terms na podstawie faktów wyodrębnionych ze strony produktu.
 
 Dane wejściowe:
 {product_facts_json}
@@ -465,25 +482,37 @@ Limit fraz:
 {max_keywords}
 
 Cel:
-Chcę otrzymać listę fraz bazowych, które wynikają bezpośrednio z treści strony produktu.
+Chcę otrzymać krótkie frazy bazowe, które najlepiej nadają się do wpisania w Ahrefs Matching Terms.
 
-Uwzględnij:
-* wskazania,
-* zastosowania,
-* problemy skórne,
-* objawy,
-* mechanizm działania,
-* składniki,
-* typ produktu,
-* status produktu,
-* grupy odbiorców, jeśli są podane wprost.
+Frazy mają pomóc znaleźć większe grupy zapytań związanych z produktem, jego wskazaniami, zastosowaniami, składnikami i problemami użytkowników.
 
-Nie uwzględniaj:
-* hipotez contentowych,
-* sezonowości niepodanej na stronie,
-* aktywności lifestyle’owych niepodanych na stronie,
-* terapii lub chorób, których nie ma w faktach,
-* fraz sugerujących niepotwierdzone działanie.
+Nie chcę długich fraz ani doprecyzowań typu:
+* po bieganiu,
+* zimą,
+* latem,
+* dla dzieci,
+* u dorosłych,
+* na twarz,
+* jak stosować,
+* co wybrać,
+* poradnik,
+* objawy i przyczyny.
+
+Jeżeli istnieje seed ogólny, wybierz seed ogólny:
+* zamiast „odparzenia po bieganiu” wybierz „odparzenia”,
+* zamiast „sucha skóra zimą” wybierz „sucha skóra” albo „nadmierna suchość skóry”,
+* zamiast „łagodzenie objawów łuszczycy u dzieci” wybierz „łagodzenie objawów łuszczycy”, „objawy łuszczycy” albo „łuszczyca”,
+* zamiast „olej lniany na skórę” wybierz „olej lniany”.
+
+Uwzględnij przede wszystkim:
+* wskazania wprost z produktu,
+* choroby wymienione wprost,
+* objawy wymienione wprost,
+* stany skóry,
+* składniki aktywne lub kluczowe,
+* mechanizmy działania,
+* typ produktu, jeśli jest istotny,
+* status produktu, jeśli może mieć znaczenie SEO.
 
 Zwróć wyłącznie JSON:
 {
@@ -495,16 +524,18 @@ Zwróć wyłącznie JSON:
 "keyword_details": [
 {
 "fraza": "",
-"typ": "wskazanie | objaw | choroba | stan_skory | mechanizm | skladnik | typ_produktu | status | grupa_docelowa | inne",
+"typ": "wskazanie | choroba | objaw | stan_skory | skladnik | mechanizm | typ_produktu | status | inne",
 "podstawa_w_faktach": "",
+"dlaczego_to_dobry_seed_do_ahrefs": "",
 "priorytet": "wysoki | sredni | niski",
 "czy_wymaga_ostroznej_komunikacji": true
 }
 ],
-"odrzucone_pomysly": [
+"odrzucone_lub_zawężone_frazy": [
 {
 "fraza": "",
-"powod_odrzucenia": ""
+"powod": "zbyt_dlugie | zbyt_sytuacyjne | zbyt_ogolne | duplikat | niepotwierdzone | lepszy_seed_ogolny",
+"zastapione_przez": ""
 }
 ]
 }"""
