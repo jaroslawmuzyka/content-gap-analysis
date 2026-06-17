@@ -21,7 +21,9 @@ def render(openai_api_key):
         manual_df = st.data_editor(default_manual_df, num_rows="dynamic", use_container_width=True)
         
     with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
-        models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3        st.markdown("### 📝 Prompt 1: Analiza Produktu")
+        models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
+        
+        st.markdown("### 📝 Prompt 1: Analiza Produktu")
         template_a = st.radio("Szablon Ustawień (Analiza):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.5, reasoning: medium, temp: 0)"], key="template_a")
         
         if template_a == "Domyślny (Ręczne parametry)":
