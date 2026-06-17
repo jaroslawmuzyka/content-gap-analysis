@@ -105,6 +105,10 @@ def render():
                     df_combined = df_combined.dropna(subset=["URL"])
                     df_combined = df_combined[df_combined["URL"].astype(str).str.strip() != ""]
                     
+                    if "Senuto_Traffic" in df_combined.columns:
+                        df_combined["Senuto_Traffic"] = df_combined["Senuto_Traffic"].round().astype("Int64")
+                        df_combined = df_combined.sort_values(by="Senuto_Traffic", ascending=False)
+                    
                     st.session_state.df_domain = df_combined
                     
                     # Generowanie rozszerzonej (niepogrupowanej) wersji tabeli
@@ -130,6 +134,10 @@ def render():
                     u_cols = ["URL", "Keyword", "Volume", "Traffic", "Position", "Source"]
                     u_cols = [c for c in u_cols if c in df_unpivoted.columns]
                     df_unpivoted = df_unpivoted[u_cols]
+                    
+                    if "Traffic" in df_unpivoted.columns:
+                        mask_senuto = df_unpivoted["Source"] == "Senuto"
+                        df_unpivoted.loc[mask_senuto, "Traffic"] = df_unpivoted.loc[mask_senuto, "Traffic"].round().astype("Int64")
                     
                     st.session_state.df_unpivoted = df_unpivoted
                     

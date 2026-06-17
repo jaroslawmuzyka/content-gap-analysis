@@ -26,7 +26,7 @@ def render(openai_api_key):
         
         step2_sys = st.text_area("System Prompt", value="Jesteś ekspertem SEO i farmacji/kosmetyki.", key="step2_sys")
         
-        def_user_2 = """Przeanalizuj treść opisu produktu ze strony internetowej.
+        def_user_2_a = """Przeanalizuj treść opisu produktu ze strony internetowej.
 Strona: {url}
 Treść strony:
 {content}
@@ -37,10 +37,22 @@ Struktura JSON ma wyglądać następująco:
 {
   "problem": "Opisz krótko jaki problem medyczny/kosmetyczny ten produkt rozwiązuje",
   "ograniczenia": "Opisz ograniczenia (np. wiek, przeciwwskazania)",
-  "przyczyny": "Co powoduje schorzenie i dla kogo produkt jest przeznaczony?",
-  "seed_keywords": ["fraza 1", "fraza 2"] // max 10 najważniejszych fraz (od 1 do 3 słów)
+  "przyczyny": "Co powoduje schorzenie i dla kogo produkt jest przeznaczony?"
 }"""
-        step2_user = st.text_area("User Prompt (użyj {url} i {content})", value=def_user_2, height=300, key="step2_user")
+        step2_user_a = st.text_area("User Prompt 1: Analiza Produktu", value=def_user_2_a, height=200, key="step2_user_a")
+        
+        def_user_2_b = """Wygeneruj frazy SEO dla produktu na podstawie jego treści.
+Strona: {url}
+Treść strony:
+{content}
+
+Zadanie:
+Zwróć poprawny obiekt JSON z najważniejszymi frazami (max 10, od 1 do 3 słów) w mianowniku, pasującymi do tego produktu.
+Struktura JSON:
+{
+  "seed_keywords": ["fraza 1", "fraza 2"]
+}"""
+        step2_user_b = st.text_area("User Prompt 2: Frazy SEO", value=def_user_2_b, height=180, key="step2_user_b")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -99,31 +111,51 @@ Struktura JSON ma wyglądać następująco:
                             continue
                         
                     if content:
-                        prompt = step2_user.replace("{url}", url).replace("{content}", content[:4000])
-                        
                         client = openai.OpenAI(api_key=openai_api_key)
-                        ai_response = client.chat.completions.create(
+                        
+                        # Call 1
+                        prompt_a = step2_user_a.replace("{url}", url).replace("{content}", content[:4000])
+                        ai_response_a = client.chat.completions.create(
                             model=step2_model,
                             temperature=step2_temp,
                             max_tokens=step2_tokens,
                             response_format={ "type": "json_object" },
                             messages=[
                                 {"role": "system", "content": step2_sys},
-                                {"role": "user", "content": prompt}
+                                {"role": "user", "content": prompt_a}
                             ]
                         )
-                        result = ai_response.choices[0].message.content
+                        result_a = ai_response_a.choices[0].message.content
+                        
+                        # Call 2
+                        prompt_b = step2_user_b.replace("{url}", url).replace("{content}", content[:4000])
+                        ai_response_b = client.chat.completions.create(
+                            model=step2_model,
+                            temperature=step2_temp,
+                            max_tokens=step2_tokens,
+                            response_format={ "type": "json_object" },
+                            messages=[
+                                {"role": "system", "content": step2_sys},
+                                {"role": "user", "content": prompt_b}
+                            ]
+                        )
+                        result_b = ai_response_b.choices[0].message.content
                         
                         import json
                         try:
-                            data = json.loads(result)
-                            analysis_text = f"**Problem:** {data.get('problem', '')}\n\n**Ograniczenia:** {data.get('ograniczenia', '')}\n\n**Przyczyny:** {data.get('przyczyny', '')}"
-                            raw_phrases = data.get('seed_keywords', [])
+                            data_a = json.loads(result_a)
+                            analysis_text = f"**Problem:** {data_a.get('problem', '')}\n\n**Ograniczenia:** {data_a.get('ograniczenia', '')}\n\n**Przyczyny:** {data_a.get('przyczyny', '')}"
+                        except Exception as e:
+                            analysis_text = f"Błąd parsowania JSON (Prompt 1): {result_a}"
+                            st.warning(analysis_text)
+                            
+                        try:
+                            data_b = json.loads(result_b)
+                            raw_phrases = data_b.get('seed_keywords', [])
                             phrases = [str(p).replace('*', '').strip().lower() for p in raw_phrases if str(p).strip()]
                         except Exception as e:
-                            analysis_text = result
                             phrases = []
-                            st.warning(f"Nie udało się sparsować JSON dla {url}: {e}")
+                            st.warning(f"Błąd parsowania JSON (Prompt 2): {result_b}")
                             
                         product_analysis.append({
                             "url": url,
