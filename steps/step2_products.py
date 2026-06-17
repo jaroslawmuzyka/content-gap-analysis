@@ -31,37 +31,37 @@ def render(openai_api_key):
             st.info("Zastosowano kaskadę 5 promptów (wg. nowych zaleceń).")
             params_1 = {"model": "gpt-5.5", "temperature": 0.0, "max_tokens": 16000, "reasoning_effort": "medium"}
             params_2 = {"model": "gpt-5.5", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "medium"}
-            params_3 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
-            params_4 = {"model": "gpt-5.4-mini", "temperature": 0.1, "max_tokens": 16000, "reasoning_effort": "low"}
-            params_5 = {"model": "gpt-5.5", "temperature": 0.0, "max_tokens": 16000, "reasoning_effort": "medium"}
+            params_3 = {"model": "gpt-5.4-mini", "temperature": 1.0, "max_tokens": 16000, "reasoning_effort": "low"}
+            params_4 = {"model": "gpt-5.4-mini", "temperature": 1.0, "max_tokens": 16000, "reasoning_effort": "low"}
+            params_5 = {"model": "gpt-5.4-mini", "temperature": 1.0, "max_tokens": 16000, "reasoning_effort": "medium"}
         else:
             st.warning("Ustawiasz parametry ręcznie dla każdego z 5 promptów.")
             t1p, t2p, t3p, t4p, t5p = st.tabs(["Parametry P1", "Parametry P2", "Parametry P3", "Parametry P4", "Parametry P5"])
             with t1p:
                 m1 = st.selectbox("Model P1", models_list, index=models_list.index("gpt-5.4-mini"), key="m1")
-                t1 = st.slider("Temp P1", 0.0, 2.0, 0.0, 0.1, key="t1")
+                t1 = st.slider("Temp P1", 0.0, 2.0, 1.0 if m1 == "gpt-5.4-mini" else 0.0, 0.1, key="t1")
                 r1 = st.selectbox("Reasoning P1", reasoning_efforts, index=1, key="r1")
-                params_1 = {"model": m1, "temperature": t1, "max_tokens": 16000, "reasoning_effort": r1}
+                params_1 = {"model": m1, "temperature": 1.0 if m1 == "gpt-5.4-mini" else t1, "max_tokens": 16000, "reasoning_effort": r1}
             with t2p:
                 m2 = st.selectbox("Model P2", models_list, index=models_list.index("gpt-5.4-mini"), key="m2")
-                t2 = st.slider("Temp P2", 0.0, 2.0, 0.1, 0.1, key="t2")
+                t2 = st.slider("Temp P2", 0.0, 2.0, 1.0 if m2 == "gpt-5.4-mini" else 0.1, 0.1, key="t2")
                 r2 = st.selectbox("Reasoning P2", reasoning_efforts, index=1, key="r2")
-                params_2 = {"model": m2, "temperature": t2, "max_tokens": 16000, "reasoning_effort": r2}
+                params_2 = {"model": m2, "temperature": 1.0 if m2 == "gpt-5.4-mini" else t2, "max_tokens": 16000, "reasoning_effort": r2}
             with t3p:
                 m3 = st.selectbox("Model P3", models_list, index=models_list.index("gpt-5.4-mini"), key="m3")
-                t3 = st.slider("Temp P3", 0.0, 2.0, 0.1, 0.1, key="t3")
+                t3 = st.slider("Temp P3", 0.0, 2.0, 1.0 if m3 == "gpt-5.4-mini" else 0.1, 0.1, key="t3")
                 r3 = st.selectbox("Reasoning P3", reasoning_efforts, index=0, key="r3")
-                params_3 = {"model": m3, "temperature": t3, "max_tokens": 16000, "reasoning_effort": r3}
+                params_3 = {"model": m3, "temperature": 1.0 if m3 == "gpt-5.4-mini" else t3, "max_tokens": 16000, "reasoning_effort": r3}
             with t4p:
                 m4 = st.selectbox("Model P4", models_list, index=models_list.index("gpt-5.4-mini"), key="m4")
-                t4 = st.slider("Temp P4", 0.0, 2.0, 0.1, 0.1, key="t4")
+                t4 = st.slider("Temp P4", 0.0, 2.0, 1.0 if m4 == "gpt-5.4-mini" else 0.1, 0.1, key="t4")
                 r4 = st.selectbox("Reasoning P4", reasoning_efforts, index=0, key="r4")
-                params_4 = {"model": m4, "temperature": t4, "max_tokens": 16000, "reasoning_effort": r4}
+                params_4 = {"model": m4, "temperature": 1.0 if m4 == "gpt-5.4-mini" else t4, "max_tokens": 16000, "reasoning_effort": r4}
             with t5p:
-                m5 = st.selectbox("Model P5", models_list, index=models_list.index("gpt-5.5"), key="m5")
-                t5 = st.slider("Temp P5", 0.0, 2.0, 0.0, 0.1, key="t5")
+                m5 = st.selectbox("Model P5", models_list, index=models_list.index("gpt-5.4-mini"), key="m5")
+                t5 = st.slider("Temp P5", 0.0, 2.0, 1.0 if m5 == "gpt-5.4-mini" else 0.0, 0.1, key="t5")
                 r5 = st.selectbox("Reasoning P5", reasoning_efforts, index=1, key="r5")
-                params_5 = {"model": m5, "temperature": t5, "max_tokens": 16000, "reasoning_effort": r5}
+                params_5 = {"model": m5, "temperature": 1.0 if m5 == "gpt-5.4-mini" else t5, "max_tokens": 16000, "reasoning_effort": r5}
 
         # PROMPT 1
         sys_1_def = """Jesteś rygorystycznym ekstraktorem danych produktowych dla produktów zdrowotnych, kosmetycznych, dermokosmetycznych, OTC, leków bez recepty i wyrobów medycznych.
@@ -1002,45 +1002,48 @@ Napisz krótkie, decyzyjne podsumowanie:
                         if "reasoning_effort" in params_5: call_5_kwargs["reasoning_effort"] = params_5["reasoning_effort"]
                         r5 = client.chat.completions.create(**call_5_kwargs).choices[0].message.content
                         
-                        try:
-                            d1 = json.loads(r1)
-                            d2 = json.loads(r2)
-                            d3 = json.loads(r3)
-                            d4 = json.loads(r4)
-                            
-                            phrases_3 = [str(x).strip().lower() for x in d3.get("seed_keywords", [])]
-                            phrases_4 = [str(x).strip().lower() for x in d4.get("seed_keywords", [])]
-                            combined_phrases = list(dict.fromkeys(phrases_3 + phrases_4))
-                            
-                            md_lines = []
-                            if "produkt" in d1:
-                                md_lines.append("### 🏷 Fakty wyodrębnione z treści (P1)")
-                                p1 = d1["produkt"]
-                                md_lines.append(f"- **Nazwa:** {p1.get('nazwa', '')} | **Status:** {p1.get('status_produktu', '')} | **Kategoria:** {p1.get('kategoria', '')}")
-                                md_lines.append(f"- **Wskazania wprost:** " + ", ".join([w.get('nazwa', '') for w in d1.get('wskazania_i_zastosowania', []) if isinstance(w, dict)]))
-                                md_lines.append("")
-                            
-                            if "podsumowanie" in d2:
-                                p2 = d2["podsumowanie"]
-                                md_lines.append("### 🎯 Analiza Rozszerzona (P2)")
-                                md_lines.append(f"- **Wniosek:** {p2.get('najwazniejszy_wniosek', '')}")
-                                md_lines.append(f"- **Szansa contentowa:** {d2.get('profil_strategiczny_produktu', {}).get('najwieksza_szansa_contentowa', '')}")
-                                md_lines.append(f"- **Ryzyko:** {p2.get('najwieksze_ryzyko', '')}")
-                                md_lines.append("")
-                                
-                            md_lines.append("### 🔍 Frazy SEO (P3 + P4)")
-                            md_lines.append(f"Wygenerowano łącznie **{len(combined_phrases)}** unikalnych seed keywords.")
-                            md_lines.append(f"Przykładowe 10 fraz: {', '.join(combined_phrases[:10])}...")
+                        d1, d2, d3, d4 = {}, {}, {}, {}
+                        
+                        try: d1 = json.loads(r1)
+                        except Exception: st.warning("Błąd parsowania JSON dla P1")
+                        
+                        try: d2 = json.loads(r2)
+                        except Exception: st.warning("Błąd parsowania JSON dla P2")
+                        
+                        try: d3 = json.loads(r3)
+                        except Exception: st.warning("Błąd parsowania JSON dla P3")
+                        
+                        try: d4 = json.loads(r4)
+                        except Exception: st.warning("Błąd parsowania JSON dla P4")
+                        
+                        phrases_3 = [str(x).strip().lower() for x in d3.get("seed_keywords", [])] if d3 else []
+                        phrases_4 = [str(x).strip().lower() for x in d4.get("seed_keywords", [])] if d4 else []
+                        combined_phrases = list(dict.fromkeys(phrases_3 + phrases_4))
+                        
+                        md_lines = []
+                        if "produkt" in d1:
+                            md_lines.append("### 🏷 Fakty wyodrębnione z treści (P1)")
+                            p1 = d1["produkt"]
+                            md_lines.append(f"- **Nazwa:** {p1.get('nazwa', '')} | **Status:** {p1.get('status_produktu', '')} | **Kategoria:** {p1.get('kategoria', '')}")
+                            md_lines.append(f"- **Wskazania wprost:** " + ", ".join([w.get('nazwa', '') for w in d1.get('wskazania_i_zastosowania', []) if isinstance(w, dict)]))
                             md_lines.append("")
-
-                            md_lines.append("### 📦 Pełne JSONy na dole rozwijanej sekcji")
+                        
+                        if "podsumowanie" in d2:
+                            p2 = d2["podsumowanie"]
+                            md_lines.append("### 🎯 Analiza Rozszerzona (P2)")
+                            md_lines.append(f"- **Wniosek:** {p2.get('najwazniejszy_wniosek', '')}")
+                            md_lines.append(f"- **Szansa contentowa:** {d2.get('profil_strategiczny_produktu', {}).get('najwieksza_szansa_contentowa', '')}")
+                            md_lines.append(f"- **Ryzyko:** {p2.get('najwieksze_ryzyko', '')}")
+                            md_lines.append("")
                             
-                            analysis_text = "\n".join(md_lines)
-                        except Exception as e:
-                            analysis_text = f"Błąd parsowania JSON w kaskadzie: {e}"
-                            st.warning(f"Błąd parsowania JSON dla {url}")
-                            combined_phrases = []
-                            d1, d2, d3, d4 = {}, {}, {}, {}
+                        md_lines.append("### 🔍 Frazy SEO (P3 + P4)")
+                        md_lines.append(f"Wygenerowano łącznie **{len(combined_phrases)}** unikalnych seed keywords.")
+                        md_lines.append(f"Przykładowe 10 fraz: {', '.join(combined_phrases[:10])}...")
+                        md_lines.append("")
+
+                        md_lines.append("### 📦 Pełne JSONy na dole rozwijanej sekcji")
+                        
+                        analysis_text = "\n".join(md_lines)
                             
                         product_analysis.append({
                             "url": url,
@@ -1068,9 +1071,12 @@ Napisz krótkie, decyzyjne podsumowanie:
         
         from utils.helpers import to_excel_multi
         
-        products_data = []
-        keywords_data = []
-        zastosowania_data = []
+        p1_fakty_data = []
+        p2_zastosowania_data = []
+        p2_strategia_data = []
+        p3_frazy_data = []
+        p4_frazy_data = []
+        p5_kontekst_data = []
         
         for item in st.session_state.product_analysis:
             url = item["url"]
@@ -1122,52 +1128,96 @@ Napisz krótkie, decyzyjne podsumowanie:
                 if j4:
                     with st.expander("JSON 4: Frazy z Analizy"): st.json(j4)
             
-            # Zebranie danych do Excela
-            products_data.append({
+            # P1 - Fakty ze strony
+            sklad_dict = j1.get("sklad") or {}
+            skladniki = sklad_dict.get("skladniki_aktywne_lub_kluczowe") or [] if isinstance(sklad_dict, dict) else []
+            skladniki_str = ", ".join([s.get("skladnik", "") for s in skladniki if isinstance(s, dict)])
+            
+            wskazania = j1.get("wskazania_i_zastosowania") or []
+            wskazania_str = ", ".join([w.get("nazwa", "") for w in wskazania if isinstance(w, dict)])
+            
+            dzialanie = j1.get("dzialanie_i_mechanizm") or []
+            dzialanie_str = ", ".join([d.get("dzialanie", "") for d in dzialanie if isinstance(d, dict)])
+            
+            grupy = j1.get("grupy_docelowe_wprost") or []
+            grupy_str = ", ".join([g.get("grupa", "") for g in grupy if isinstance(g, dict)])
+            
+            p1 = j1.get("produkt") or {}
+            if not isinstance(p1, dict): p1 = {}
+            
+            p1_fakty_data.append({
                 "URL": url,
                 "Nazwa": p1.get("nazwa", ""),
                 "Status": p1.get("status_produktu", ""),
                 "Kategoria": p1.get("kategoria", ""),
                 "Postać": p1.get("postac", ""),
-                "Dostępny bez recepty": p1.get("czy_dostepny_bez_recepty", ""),
-                "Najważniejszy Wniosek": podsumowanie.get("najwazniejszy_wniosek", "") if podsumowanie else "",
-                "Szansa Contentowa": strat.get("najwieksza_szansa_contentowa", "") if strat else "",
-                "Największe Ryzyko": podsumowanie.get("najwieksze_ryzyko", "") if podsumowanie else ""
+                "Dostępny bez recepty": str(p1.get("czy_dostepny_bez_recepty", "")),
+                "Składniki Aktywne": skladniki_str,
+                "Wskazania wprost": wskazania_str,
+                "Działanie/Mechanizm": dzialanie_str,
+                "Grupy Docelowe": grupy_str
             })
             
-            for k in j3.get("keyword_details", []):
-                keywords_data.append({
+            # P2 - Analiza Zastosowań
+            analiza_zastosowan = j2.get("analiza_zastosowan") or []
+            if not isinstance(analiza_zastosowan, list): analiza_zastosowan = []
+            for zast in analiza_zastosowan:
+                if isinstance(zast, dict):
+                    p2_zastosowania_data.append({
+                        "URL": url,
+                        "Zastosowanie": zast.get("zastosowanie", ""),
+                        "Typ": zast.get("typ", ""),
+                        "Rola Produktu": zast.get("rola_produktu", ""),
+                        "Poziom Pewności": zast.get("poziom_pewnosci", ""),
+                        "Wymaga Weryfikacji": str(zast.get("wymaga_weryfikacji", ""))
+                    })
+            
+            # P2 - Profil Strategiczny
+            strat = j2.get("profil_strategiczny_produktu") or {}
+            if not isinstance(strat, dict): strat = {}
+            podsumowanie = j2.get("podsumowanie") or {}
+            if not isinstance(podsumowanie, dict): podsumowanie = {}
+            
+            p2_strategia_data.append({
+                "URL": url,
+                "Główna Rola Produktu": strat.get("glowna_rola_produktu", ""),
+                "Największa Szansa Contentowa": strat.get("najwieksza_szansa_contentowa", ""),
+                "Ograniczenia Komunikacyjne": strat.get("ograniczenia_komunikacyjne", ""),
+                "Najważniejszy Wniosek": podsumowanie.get("najwazniejszy_wniosek", ""),
+                "Największe Ryzyko": podsumowanie.get("najwieksze_ryzyko", "")
+            })
+            
+            # P3 - Frazy z Faktów
+            seed_3 = j3.get("seed_keywords") or []
+            if not isinstance(seed_3, list): seed_3 = []
+            for k in seed_3:
+                p3_frazy_data.append({
                     "URL": url,
-                    "Fraza": k.get("fraza", ""),
-                    "Źródło": "Fakty",
-                    "Typ": k.get("typ", ""),
-                    "Priorytet": k.get("priorytet", ""),
-                    "Uwaga / Podstawa": k.get("podstawa_w_faktach", "")
-                })
-            for k in j4.get("keyword_details", []):
-                keywords_data.append({
-                    "URL": url,
-                    "Fraza": k.get("fraza", ""),
-                    "Źródło": "Analiza Rozszerzona",
-                    "Typ": k.get("typ", ""),
-                    "Priorytet": k.get("priorytet", ""),
-                    "Uwaga / Podstawa": k.get("uwaga_komunikacyjna", "")
+                    "Fraza (Seed Keyword)": str(k).strip()
                 })
                 
-            for zast in j2.get("analiza_zastosowan", []):
-                zastosowania_data.append({
+            # P4 - Frazy z Analizy
+            seed_4 = j4.get("seed_keywords") or []
+            if not isinstance(seed_4, list): seed_4 = []
+            for k in seed_4:
+                p4_frazy_data.append({
                     "URL": url,
-                    "Zastosowanie": zast.get("zastosowanie", ""),
-                    "Typ": zast.get("typ", ""),
-                    "Rola Produktu": zast.get("rola_produktu", ""),
-                    "Poziom Pewności": zast.get("poziom_pewnosci", ""),
-                    "Wymaga Weryfikacji": zast.get("wymaga_weryfikacji", "")
+                    "Fraza (Seed Keyword)": str(k).strip()
                 })
+                
+            # P5 - Kontekst Content Gap
+            p5_kontekst_data.append({
+                "URL": url,
+                "Kontekst Produktu (Brief)": ctx
+            })
         
         excel_sheets = {
-            "Produkty": pd.DataFrame(products_data),
-            "Słowa Kluczowe": pd.DataFrame(keywords_data),
-            "Zastosowania": pd.DataFrame(zastosowania_data)
+            "P1 - Fakty ze strony": pd.DataFrame(p1_fakty_data),
+            "P2 - Analiza Zastosowań": pd.DataFrame(p2_zastosowania_data),
+            "P2 - Profil Strategiczny": pd.DataFrame(p2_strategia_data),
+            "P3 - Frazy z Faktów": pd.DataFrame(p3_frazy_data),
+            "P4 - Frazy z Analizy": pd.DataFrame(p4_frazy_data),
+            "P5 - Kontekst CG": pd.DataFrame(p5_kontekst_data)
         }
         
         excel_data = to_excel_multi(excel_sheets)

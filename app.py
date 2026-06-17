@@ -10,7 +10,6 @@ if "step" not in st.session_state:
 
 # Pasek boczny na konfigurację i nawigację
 with st.sidebar:
-    st.title("⚙️ Ustawienia")
     openai_api_key = st.secrets.get("OPENAI_API_KEY", "")
     if not openai_api_key:
         openai_api_key = st.text_input("Podaj klucz OpenAI API:", type="password")
@@ -27,7 +26,6 @@ with st.sidebar:
     st.session_state.jina_api_key = jina_api_key
         
     st.markdown("---")
-    st.title("🧭 Nawigacja")
     
     step1 = st.button("Krok 1: Wgranie Danych Domeny", use_container_width=True)
     step2 = st.button("Krok 2: Analiza Produktów (Jina + AI)", use_container_width=True)
@@ -37,7 +35,6 @@ with st.sidebar:
     step6 = st.button("Krok 6: Struktura Własnej Strony", use_container_width=True)
     step7 = st.button("Krok 7: Weryfikacja Istniejących Treści", use_container_width=True)
     step8 = st.button("Krok 8: Audyt Contentu (AI Readiness)", use_container_width=True)
-    st.markdown("---")
     step9 = st.button("Krok 9: Globalny Raport (Eksport)", use_container_width=True)
     
     if step1: st.session_state.step = 1

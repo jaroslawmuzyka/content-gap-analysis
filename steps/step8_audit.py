@@ -14,18 +14,18 @@ def render(openai_api_key):
     with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
         models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
         
-        template_8 = st.radio("Szablon Ustawień (Audyt):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: medium, temp: 0.1)"], key="template_8")
+        template_8 = st.radio("Szablon Ustawień (Audyt):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: medium, temp: 1.0)"], key="template_8")
         if template_8 == "Domyślny (Ręczne parametry)":
-            step8_model = st.selectbox("Wybierz model OpenAI:", models, index=0, key="step8_model")
+            step8_model = st.selectbox("Wybierz model OpenAI:", models, index=models.index("gpt-5.4-mini") if "gpt-5.4-mini" in models else 0, key="step8_model")
             col1, col2 = st.columns(2)
             with col1:
-                step8_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step8_temp")
+                step8_temp = st.slider("Temperatura", 0.0, 2.0, 1.0 if step8_model == "gpt-5.4-mini" else 0.7, 0.1, key="step8_temp")
             with col2:
                 step8_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step8_tokens")
-            params_8 = {"model": step8_model, "temperature": step8_temp, "max_tokens": step8_tokens}
+            params_8 = {"model": step8_model, "temperature": 1.0 if step8_model == "gpt-5.4-mini" else step8_temp, "max_tokens": step8_tokens}
         else:
-            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=medium.")
-            params_8 = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "medium"}
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=1.0, reasoning_effort=medium.")
+            params_8 = {"model": "gpt-5.4-mini", "temperature": 1.0, "reasoning_effort": "medium"}
         
         step8_sys_def = """Jesteś ekspertem SEO, redaktorem naczelnym, content strategistą i rygorystycznym audytorem treści dla serwisów medycznych, kosmetycznych, dermokosmetycznych, OTC i e-commerce.
 

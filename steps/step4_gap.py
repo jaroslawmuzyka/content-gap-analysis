@@ -13,18 +13,18 @@ def render(openai_api_key):
     with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
         models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
         
-        template_4 = st.radio("Szablon Ustawień (Content Gap):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: low, temp: 0.1)"], key="template_4")
+        template_4 = st.radio("Szablon Ustawień (Content Gap):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: low, temp: 1.0)"], key="template_4")
         if template_4 == "Domyślny (Ręczne parametry)":
-            step4_model = st.selectbox("Wybierz model OpenAI:", models, index=0, key="step4_model")
+            step4_model = st.selectbox("Wybierz model OpenAI:", models, index=models.index("gpt-5.4-mini") if "gpt-5.4-mini" in models else 0, key="step4_model")
             col1, col2 = st.columns(2)
             with col1:
-                step4_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step4_temp")
+                step4_temp = st.slider("Temperatura", 0.0, 2.0, 1.0 if step4_model == "gpt-5.4-mini" else 0.7, 0.1, key="step4_temp")
             with col2:
                 step4_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step4_tokens")
-            params_4 = {"model": step4_model, "temperature": step4_temp, "max_tokens": step4_tokens}
+            params_4 = {"model": step4_model, "temperature": 1.0 if step4_model == "gpt-5.4-mini" else step4_temp, "max_tokens": step4_tokens}
         else:
-            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=low.")
-            params_4 = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "low"}
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=1.0, reasoning_effort=low.")
+            params_4 = {"model": "gpt-5.4-mini", "temperature": 1.0, "reasoning_effort": "low"}
         
         step4_sys_def = """Jesteś ekspertem SEO i rygorystycznym analitykiem Content Gap dla produktów zdrowotnych, kosmetycznych, dermokosmetycznych, OTC oraz leków bez recepty.
 

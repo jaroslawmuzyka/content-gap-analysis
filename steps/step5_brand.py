@@ -18,18 +18,18 @@ def render(openai_api_key):
         models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
         
         st.markdown("### 📝 Prompt 1: Analiza Pojedynczej Frazy")
-        template_5a = st.radio("Szablon Ustawień (Fraza):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: medium, temp: 0.1)"], key="template_5a")
+        template_5a = st.radio("Szablon Ustawień (Fraza):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: medium, temp: 1.0)"], key="template_5a")
         if template_5a == "Domyślny (Ręczne parametry)":
-            step5_model_a = st.selectbox("Wybierz model:", models, index=0, key="step5_model_a")
+            step5_model_a = st.selectbox("Wybierz model:", models, index=models.index("gpt-5.4-mini") if "gpt-5.4-mini" in models else 0, key="step5_model_a")
             ca1, ca2 = st.columns(2)
             with ca1:
-                step5_temp_a = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step5_temp_a")
+                step5_temp_a = st.slider("Temperatura", 0.0, 2.0, 1.0 if step5_model_a == "gpt-5.4-mini" else 0.7, 0.1, key="step5_temp_a")
             with ca2:
                 step5_tokens_a = st.number_input("Max Tokens", 100, 16000, 4000, key="step5_tokens_a")
-            params_5a = {"model": step5_model_a, "temperature": step5_temp_a, "max_tokens": step5_tokens_a}
+            params_5a = {"model": step5_model_a, "temperature": 1.0 if step5_model_a == "gpt-5.4-mini" else step5_temp_a, "max_tokens": step5_tokens_a}
         else:
-            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=medium.")
-            params_5a = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "medium"}
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=1.0, reasoning_effort=medium.")
+            params_5a = {"model": "gpt-5.4-mini", "temperature": 1.0, "reasoning_effort": "medium"}
             
         sys_5a_def = """Jesteś ekspertem SEO, content strategistą i analitykiem fraz brandowych dla produktów medycznych, kosmetycznych, dermokosmetycznych i OTC.
 
@@ -122,18 +122,18 @@ Zwróć wyłącznie poprawny JSON w strukturze:
 
         st.markdown("---")
         st.markdown("### 📦 Prompt 2: Grupowanie Fraz (Klastry)")
-        template_5b = st.radio("Szablon Ustawień (Grupowanie):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: medium, temp: 0.1)"], key="template_5b")
+        template_5b = st.radio("Szablon Ustawień (Grupowanie):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: medium, temp: 1.0)"], key="template_5b")
         if template_5b == "Domyślny (Ręczne parametry)":
-            step5_model_b = st.selectbox("Wybierz model:", models, index=0, key="step5_model_b")
+            step5_model_b = st.selectbox("Wybierz model:", models, index=models.index("gpt-5.4-mini") if "gpt-5.4-mini" in models else 0, key="step5_model_b")
             cb1, cb2 = st.columns(2)
             with cb1:
-                step5_temp_b = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step5_temp_b")
+                step5_temp_b = st.slider("Temperatura", 0.0, 2.0, 1.0 if step5_model_b == "gpt-5.4-mini" else 0.7, 0.1, key="step5_temp_b")
             with cb2:
                 step5_tokens_b = st.number_input("Max Tokens", 100, 16000, 4000, key="step5_tokens_b")
-            params_5b = {"model": step5_model_b, "temperature": step5_temp_b, "max_tokens": step5_tokens_b}
+            params_5b = {"model": step5_model_b, "temperature": 1.0 if step5_model_b == "gpt-5.4-mini" else step5_temp_b, "max_tokens": step5_tokens_b}
         else:
-            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=medium.")
-            params_5b = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "medium"}
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=1.0, reasoning_effort=medium.")
+            params_5b = {"model": "gpt-5.4-mini", "temperature": 1.0, "reasoning_effort": "medium"}
             
         sys_5b_def = """Jesteś ekspertem SEO, content strategistą i architektem informacji dla stron produktowych, e-commerce oraz marek medycznych, kosmetycznych, dermokosmetycznych i OTC.
 

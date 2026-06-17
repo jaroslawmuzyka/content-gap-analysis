@@ -18,18 +18,18 @@ def render(openai_api_key):
         with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
             models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
             
-            template_7 = st.radio("Szablon Ustawień (Weryfikacja):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: low, temp: 0.1)"], key="template_7")
+            template_7 = st.radio("Szablon Ustawień (Weryfikacja):", ["Domyślny (Ręczne parametry)", "Rekomendowany (gpt-5.4-mini, reasoning: low, temp: 1.0)"], key="template_7")
             if template_7 == "Domyślny (Ręczne parametry)":
-                step7_model = st.selectbox("Wybierz model OpenAI:", models, index=0, key="step7_model")
+                step7_model = st.selectbox("Wybierz model OpenAI:", models, index=models.index("gpt-5.4-mini") if "gpt-5.4-mini" in models else 0, key="step7_model")
                 col1, col2 = st.columns(2)
                 with col1:
-                    step7_temp = st.slider("Temperatura", 0.0, 2.0, 0.7, 0.1, key="step7_temp")
+                    step7_temp = st.slider("Temperatura", 0.0, 2.0, 1.0 if step7_model == "gpt-5.4-mini" else 0.7, 0.1, key="step7_temp")
                 with col2:
                     step7_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step7_tokens")
-                params_7 = {"model": step7_model, "temperature": step7_temp, "max_tokens": step7_tokens}
+                params_7 = {"model": step7_model, "temperature": 1.0 if step7_model == "gpt-5.4-mini" else step7_temp, "max_tokens": step7_tokens}
             else:
-                st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=0.1, reasoning_effort=low.")
-                params_7 = {"model": "gpt-5.4-mini", "temperature": 0.1, "reasoning_effort": "low"}
+                st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=1.0, reasoning_effort=low.")
+                params_7 = {"model": "gpt-5.4-mini", "temperature": 1.0, "reasoning_effort": "low"}
             
             sys_7_def = """Jesteś redaktorem naczelnym, strategiem SEO i specjalistą od architektury treści.
 
