@@ -179,9 +179,10 @@ Zwróć wyłącznie poprawny JSON:
                             ans = ai_response.choices[0].message.content.strip()
                             
                             import json
+                            from utils.helpers import clean_json
                             try:
-                                data = json.loads(ans)
-                                ocena = data.get("ocena", "NIE_PASUJE").upper()
+                                data = json.loads(clean_json(ans))
+                                ocena = str(data.get("ocena", "NIE_PASUJE")).upper().strip()
                                 produkt = data.get("produkt", "")
                                 segment = data.get("segment", "")
                                 uzasadnienie = data.get("uzasadnienie", "")

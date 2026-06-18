@@ -158,8 +158,9 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                         ai_response = client.chat.completions.create(**call_kwargs)
                         ans = ai_response.choices[0].message.content.strip()
                         import json
+                        from utils.helpers import clean_json
                         try:
-                            data = json.loads(ans)
+                            data = json.loads(clean_json(ans))
                             row_dict = row.to_dict()
                             row_dict["Status na własnej stronie"] = data.get("status", "Błąd")
                             row_dict["Istniejący URL"] = data.get("istniejacy_url", "")

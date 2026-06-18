@@ -70,7 +70,45 @@ def clean_json(text):
         text = text[3:]
     if text.endswith('```'):
         text = text[:-3]
-    return text.strip()
+    text = text.strip()
+    
+    # Próba prostego zamknięcia urwanego JSON-a, jeśli brakuje nawiasów
+    import json
+    try:
+        json.loads(text)
+        return text
+    except json.JSONDecodeError:
+        # Bardzo prosta heurystyka naprawy uciętych stringów i nawiasów
+        fixed = text.rstrip()
+        open_brackets = []
+        in_string = False
+        escape = False
+        for char in fixed:
+            if escape:
+                escape = False
+                continue
+            if char == '"':
+                in_string = not in_string
+            elif char == '\\':
+                escape = True
+            elif not in_string:
+                if char in '{[':
+                    open_brackets.append(char)
+                elif char in '}]':
+                    if open_brackets:
+                        open_brackets.pop()
+        
+        if in_string:
+            fixed += '"'
+        
+        while open_brackets:
+            bracket = open_brackets.pop()
+            if bracket == '{':
+                fixed += '}'
+            elif bracket == '[':
+                fixed += ']'
+                
+        return fixed
 def get_step2_excel_sheets(product_analysis_list):
     p1_fakty_data = []
     p2_zastosowania_data = []
