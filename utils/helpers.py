@@ -70,6 +70,7 @@ def clean_json(text):
         text = text[3:]
     if text.endswith('```'):
         text = text[:-3]
+    return text.strip()
 def get_step2_excel_sheets(product_analysis_list):
     p1_fakty_data = []
     p2_zastosowania_data = []
