@@ -446,6 +446,11 @@ Seed keyword to krótka fraza bazowa, która po wpisaniu w Ahrefs może odkryć 
 
 Nie generujesz long-taili, tytułów artykułów ani fraz poradnikowych. Nie generujesz fraz typu „po bieganiu”, „zimą”, „dla dzieci”, „jak stosować”, jeśli nie są samodzielnym głównym tematem. Ahrefs odkryje takie rozwinięcia później.
 
+ZABRONIONE FRAZY:
+- Nie generuj ogólnych form produktu (np. "maść", "krem", "spray", "tabletki", "lek bez recepty").
+- Nie generuj ogólnych kategorii (np. "kosmetyki").
+- Nie generuj pojedynczych składników w oderwaniu od kontekstu problemu, jeśli nie stanowią samodzielnej, popularnej frazy SEO w tym segmencie.
+
 Twoim celem jest zwrócenie fraz bazowych najbliższych produktowi:
 * wskazań,
 * chorób wymienionych wprost,
@@ -552,6 +557,11 @@ Zwróć wyłącznie JSON:
 Twoim zadaniem nie jest tworzenie długich fraz contentowych. Twoim zadaniem jest wybranie krótkich, bazowych tematów, które po wpisaniu w Ahrefs mogą odkryć dużą rodzinę zapytań.
 
 Rozszerzona analiza może zawierać sezonowość, sport, pracę fizyczną, grupy odbiorców, skutki uboczne terapii, codzienne sytuacje i konteksty lifestyle’owe. Nie oznacza to, że masz generować frazy z tymi doprecyzowaniami.
+
+ZABRONIONE FRAZY:
+- Nie generuj ogólnych form produktu (np. "maść", "krem", "spray", "tabletki", "lek bez recepty").
+- Nie generuj ogólnych kategorii (np. "kosmetyki").
+- Nie generuj pojedynczych składników w oderwaniu od kontekstu problemu.
 
 Masz wyciągnąć z tej analizy tylko najlepsze, bazowe frazy:
 * problem,
@@ -1003,17 +1013,18 @@ Napisz krótkie, decyzyjne podsumowanie:
                         r5 = client.chat.completions.create(**call_5_kwargs).choices[0].message.content
                         
                         d1, d2, d3, d4 = {}, {}, {}, {}
+                        from utils.helpers import clean_json
                         
-                        try: d1 = json.loads(r1)
+                        try: d1 = json.loads(clean_json(r1))
                         except Exception: st.warning("Błąd parsowania JSON dla P1")
                         
-                        try: d2 = json.loads(r2)
+                        try: d2 = json.loads(clean_json(r2))
                         except Exception: st.warning("Błąd parsowania JSON dla P2")
                         
-                        try: d3 = json.loads(r3)
+                        try: d3 = json.loads(clean_json(r3))
                         except Exception: st.warning("Błąd parsowania JSON dla P3")
                         
-                        try: d4 = json.loads(r4)
+                        try: d4 = json.loads(clean_json(r4))
                         except Exception: st.warning("Błąd parsowania JSON dla P4")
                         
                         phrases_3 = [str(x).strip().lower() for x in d3.get("seed_keywords", [])] if d3 else []
@@ -1127,98 +1138,8 @@ Napisz krótkie, decyzyjne podsumowanie:
                     with st.expander("JSON 3: Frazy z Faktów"): st.json(j3)
                 if j4:
                     with st.expander("JSON 4: Frazy z Analizy"): st.json(j4)
-            
-            # P1 - Fakty ze strony
-            sklad_dict = j1.get("sklad") or {}
-            skladniki = sklad_dict.get("skladniki_aktywne_lub_kluczowe") or [] if isinstance(sklad_dict, dict) else []
-            skladniki_str = ", ".join([s.get("skladnik", "") for s in skladniki if isinstance(s, dict)])
-            
-            wskazania = j1.get("wskazania_i_zastosowania") or []
-            wskazania_str = ", ".join([w.get("nazwa", "") for w in wskazania if isinstance(w, dict)])
-            
-            dzialanie = j1.get("dzialanie_i_mechanizm") or []
-            dzialanie_str = ", ".join([d.get("dzialanie", "") for d in dzialanie if isinstance(d, dict)])
-            
-            grupy = j1.get("grupy_docelowe_wprost") or []
-            grupy_str = ", ".join([g.get("grupa", "") for g in grupy if isinstance(g, dict)])
-            
-            p1 = j1.get("produkt") or {}
-            if not isinstance(p1, dict): p1 = {}
-            
-            p1_fakty_data.append({
-                "URL": url,
-                "Nazwa": p1.get("nazwa", ""),
-                "Status": p1.get("status_produktu", ""),
-                "Kategoria": p1.get("kategoria", ""),
-                "Postać": p1.get("postac", ""),
-                "Dostępny bez recepty": str(p1.get("czy_dostepny_bez_recepty", "")),
-                "Składniki Aktywne": skladniki_str,
-                "Wskazania wprost": wskazania_str,
-                "Działanie/Mechanizm": dzialanie_str,
-                "Grupy Docelowe": grupy_str
-            })
-            
-            # P2 - Analiza Zastosowań
-            analiza_zastosowan = j2.get("analiza_zastosowan") or []
-            if not isinstance(analiza_zastosowan, list): analiza_zastosowan = []
-            for zast in analiza_zastosowan:
-                if isinstance(zast, dict):
-                    p2_zastosowania_data.append({
-                        "URL": url,
-                        "Zastosowanie": zast.get("zastosowanie", ""),
-                        "Typ": zast.get("typ", ""),
-                        "Rola Produktu": zast.get("rola_produktu", ""),
-                        "Poziom Pewności": zast.get("poziom_pewnosci", ""),
-                        "Wymaga Weryfikacji": str(zast.get("wymaga_weryfikacji", ""))
-                    })
-            
-            # P2 - Profil Strategiczny
-            strat = j2.get("profil_strategiczny_produktu") or {}
-            if not isinstance(strat, dict): strat = {}
-            podsumowanie = j2.get("podsumowanie") or {}
-            if not isinstance(podsumowanie, dict): podsumowanie = {}
-            
-            p2_strategia_data.append({
-                "URL": url,
-                "Główna Rola Produktu": strat.get("glowna_rola_produktu", ""),
-                "Największa Szansa Contentowa": strat.get("najwieksza_szansa_contentowa", ""),
-                "Ograniczenia Komunikacyjne": strat.get("ograniczenia_komunikacyjne", ""),
-                "Najważniejszy Wniosek": podsumowanie.get("najwazniejszy_wniosek", ""),
-                "Największe Ryzyko": podsumowanie.get("najwieksze_ryzyko", "")
-            })
-            
-            # P3 - Frazy z Faktów
-            seed_3 = j3.get("seed_keywords") or []
-            if not isinstance(seed_3, list): seed_3 = []
-            for k in seed_3:
-                p3_frazy_data.append({
-                    "URL": url,
-                    "Fraza (Seed Keyword)": str(k).strip()
-                })
-                
-            # P4 - Frazy z Analizy
-            seed_4 = j4.get("seed_keywords") or []
-            if not isinstance(seed_4, list): seed_4 = []
-            for k in seed_4:
-                p4_frazy_data.append({
-                    "URL": url,
-                    "Fraza (Seed Keyword)": str(k).strip()
-                })
-                
-            # P5 - Kontekst Content Gap
-            p5_kontekst_data.append({
-                "URL": url,
-                "Kontekst Produktu (Brief)": ctx
-            })
-        
-        excel_sheets = {
-            "P1 - Fakty ze strony": pd.DataFrame(p1_fakty_data),
-            "P2 - Analiza Zastosowań": pd.DataFrame(p2_zastosowania_data),
-            "P2 - Profil Strategiczny": pd.DataFrame(p2_strategia_data),
-            "P3 - Frazy z Faktów": pd.DataFrame(p3_frazy_data),
-            "P4 - Frazy z Analizy": pd.DataFrame(p4_frazy_data),
-            "P5 - Kontekst CG": pd.DataFrame(p5_kontekst_data)
-        }
+            from utils.helpers import to_excel_multi, get_step2_excel_sheets
+            excel_sheets = get_step2_excel_sheets(st.session_state.product_analysis)
         
         excel_data = to_excel_multi(excel_sheets)
         

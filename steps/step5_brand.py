@@ -129,11 +129,11 @@ Zwróć wyłącznie poprawny JSON w strukturze:
             with cb1:
                 step5_temp_b = st.slider("Temperatura", 0.0, 2.0, 1.0 if step5_model_b == "gpt-5.4-mini" else 0.7, 0.1, key="step5_temp_b")
             with cb2:
-                step5_tokens_b = st.number_input("Max Tokens", 100, 16000, 4000, key="step5_tokens_b")
+                step5_tokens_b = st.number_input("Max Tokens", 100, 16000, 16000, key="step5_tokens_b")
             params_5b = {"model": step5_model_b, "temperature": 1.0 if step5_model_b == "gpt-5.4-mini" else step5_temp_b, "max_tokens": step5_tokens_b}
         else:
-            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=1.0, reasoning_effort=medium.")
-            params_5b = {"model": "gpt-5.4-mini", "temperature": 1.0, "reasoning_effort": "medium"}
+            st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=1.0, max_tokens=16000, reasoning_effort=medium.")
+            params_5b = {"model": "gpt-5.4-mini", "temperature": 1.0, "max_tokens": 16000, "reasoning_effort": "medium"}
             
         sys_5b_def = """Jesteś ekspertem SEO, content strategistą i architektem informacji dla stron produktowych, e-commerce oraz marek medycznych, kosmetycznych, dermokosmetycznych i OTC.
 
@@ -354,7 +354,8 @@ Zwróć wyłącznie poprawny JSON w strukturze:
             if "reasoning_effort" in params_5b: call_b_kwargs["reasoning_effort"] = params_5b["reasoning_effort"]
                 
             resp_b = client.chat.completions.create(**call_b_kwargs)
-            final_json = json.loads(resp_b.choices[0].message.content.strip())
+            from utils.helpers import clean_json
+            final_json = json.loads(clean_json(resp_b.choices[0].message.content))
             
             st.session_state.brand_clusters = final_json
             st.success("Analiza i klastrowanie zakończone pomyślnie!")

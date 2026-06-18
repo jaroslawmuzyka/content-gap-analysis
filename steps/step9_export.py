@@ -16,7 +16,9 @@ def render():
         
     # 2. Analiza Produktów (Krok 2)
     if "product_analysis" in st.session_state:
-        sheets["2. Analiza Produktów"] = pd.DataFrame(st.session_state.product_analysis)
+        from utils.helpers import get_step2_excel_sheets
+        step2_sheets = get_step2_excel_sheets(st.session_state.product_analysis)
+        sheets.update(step2_sheets)
         
     # 4. Content Gap (Krok 4)
     if "df_gap_results" in st.session_state:

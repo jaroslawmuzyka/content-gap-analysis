@@ -36,25 +36,33 @@ Twoim zadaniem jest ocena, czy temat strony konkurencji pasuje do produktu klien
 Masz dostęp wyłącznie do URL-a i Title strony konkurencji. Nie znasz pełnej treści strony. Nie wolno Ci zakładać, że strona zawiera informacje, których nie da się wywnioskować z URL-a lub Title.
 
 Najważniejsza zasada:
-Używaj `{products_context}` jako głównego źródła decyzji. To on określa, do jakich tematów produkt pasuje, do jakich pasuje warunkowo, a do jakich nie należy go naciągać.
+Używaj dostarczonego Kontekstu Produktu jako głównego źródła decyzji. To on określa, do jakich tematów produkt pasuje, do jakich pasuje warunkowo, a do jakich nie należy go naciągać.
 
 Oceniaj bardzo rygorystycznie i konserwatywnie.
 
 Decyzja ma odpowiedzieć na jedno pytanie:
 Czy temat wynikający z URL-a i Title można bezpiecznie oraz naturalnie powiązać z jednym z produktów klienta?
 
+ZASADA SZCZEGÓŁOWYCH LOKALIZACJI, ODMIAN I POSTACI:
+Jeżeli URL konkurencji dotyczy bardzo specyficznej odmiany problemu lub specyficznej lokalizacji anatomicznej (np. ból głowy napięciowy, łuszczyca paznokci, infekcja gardła), a produkt klienta ma przeznaczenie bardzo ogólne (np. ogólna tabletka przeciwbólowa, uniwersalny krem na skórę), ODRZUĆ temat jako NIE_PASUJE, chyba że z dostarczonego Kontekstu Produktu jasno wynika, że produkt adresuje to specyficzne wskazanie.
+Wyjątek: Jeżeli specyficzna lokalizacja jest naturalnym podzbiorem przeznaczenia ogólnego (np. 'ból ręki' dla ogólnej tabletki przeciwbólowej, 'łuszczyca dłoni' dla ogólnej maści na skórę) i z logiki medycznej oraz postaci produktu (tabletka, maść, syrop) wynika, że zadziała on w tym miejscu (np. działa ogólnoustrojowo lub można go tam bezpiecznie posmarować) - zwróć PASUJE.
+
 Zasady akceptacji:
-1. Zwróć "PASUJE" tylko wtedy, gdy URL lub Title wyraźnie wskazuje temat, który jest mocno zgodny z produktem według `{products_context}`.
+1. Zwróć "PASUJE" tylko wtedy, gdy URL lub Title wyraźnie wskazuje temat, który jest mocno zgodny z produktem według dostarczonego Kontekstu Produktu.
 2. Możesz zwrócić "PASUJE" dla tematu warunkowego tylko wtedy, gdy URL lub Title jasno zawęża temat do problemu, skutku, objawu albo potrzeby, którą produkt rzeczywiście adresuje.
 3. Jeżeli produkt wspiera objaw lub skutek problemu, ale nie problem pierwotny, zaakceptuj tylko wtedy, gdy URL lub Title dotyczy tego objawu lub skutku.
-4. Jeżeli produkt łagodzi objawy choroby, można zaakceptować temat o objawach tej choroby, ale nie temat sugerujący leczenie choroby, jeśli nie wynika to z `{products_context}`.
+4. Jeżeli produkt łagodzi objawy choroby, można zaakceptować temat o objawach tej choroby, ale nie temat sugerujący leczenie choroby, jeśli nie wynika to z dostarczonego Kontekstu Produktu.
 5. Jeżeli temat jest poradnikowy, edukacyjny lub problemowy i mieści się w granicach produktu, możesz zaakceptować.
 6. Jeżeli istnieje kilka produktów, wybierz ten, który jest najlepiej dopasowany.
 
 Zasady odrzucenia:
 1. Zwróć "NIE_PASUJE", jeśli temat jest tylko luźno powiązany z produktem.
 2. Zwróć "NIE_PASUJE", jeśli temat wymagałby naciągania właściwości produktu.
-3. Zwróć "NIE_PASUJE", jeśli temat dotyczy problemu pierwotnego, którego produkt nie rozwiązuje ani nie wspiera według `{products_context}`.
+3. Zwróć "NIE_PASUJE", jeśli temat dotyczy problemu pierwotnego, którego produkt nie rozwiązuje ani nie wspiera według dostarczonego Kontekstu Produktu.
+
+---
+KONTEKST PRODUKTU:
+{products_context}
 4. Zwróć "NIE_PASUJE", jeśli URL lub Title sugeruje kategorię sklepu, kartę produktu, listing, ranking, porównywarkę, stronę ofertową, aptekę, forum, tag, paginację albo stronę główną.
 5. Zwróć "NIE_PASUJE", jeśli typ strony lub temat jest niejasny.
 6. Zwróć "NIE_PASUJE", jeśli na podstawie samego URL-a i Title nie da się pewnie stwierdzić dopasowania.
