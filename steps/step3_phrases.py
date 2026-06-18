@@ -33,15 +33,17 @@ def render():
                     for k in str(kws).split(","):
                         if k.strip(): ahrefs_phrases_set.add(k.replace('*', '').lower().strip())
         
-        all_phrases_set = ai_phrases_set.union(senuto_phrases_set).union(ahrefs_phrases_set)
+        ai_list = sorted(list(ai_phrases_set))
+        other_list = sorted(list(senuto_phrases_set.union(ahrefs_phrases_set) - ai_phrases_set))
+        all_ordered = ai_list + other_list
         
-        st.write(f"Ilość wszystkich fraz łącznie (po deduplikacji): **{len(all_phrases_set)}**")
+        st.write(f"Ilość wszystkich fraz łącznie (po deduplikacji): **{len(all_ordered)}**")
         
         tab1, tab2, tab3, tab4 = st.tabs(["Wszystkie frazy", "Frazy AI", "Frazy Senuto", "Frazy Ahrefs"])
         
         with tab1:
-            st.write(f"Ilość: {len(all_phrases_set)}")
-            st.text_area("Skopiuj te frazy do Ahrefs (Matching Terms):", "\n".join(sorted(list(all_phrases_set))), height=300, key="all_kws")
+            st.write(f"Ilość: {len(all_ordered)}")
+            st.text_area("Skopiuj te frazy do Ahrefs (Matching Terms):", "\n".join(all_ordered), height=300, key="all_kws")
             
         with tab2:
             st.write(f"Ilość: {len(ai_phrases_set)}")

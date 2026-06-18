@@ -117,7 +117,7 @@ Szczególnie wyszukaj:
 * elementy wizualne lub opisy zdjęć, jeśli wynikają z treści,
 * braki w danych, które są istotne dla dalszej analizy.
 
-Zwróć wyłącznie JSON w strukturze:
+Zwróć wyłącznie JSON o poniższej strukturze. Odpowiadaj WYŁĄCZNIE surowym tekstem JSON (bez formatowania Markdown i bloków kodu ```json). Wewnątrz wartości tekstowych używaj wyłącznie pojedynczych apostrofów ('), unikaj podwójnych cudzysłowów ("), aby nie zepsuć parsowania JSON.
 {
 "produkt": {
 "nazwa": "",
@@ -246,7 +246,7 @@ Masz zbudować pełną mapę zastosowań produktu, przyczyn problemów, skutków
 
 Zasady:
 1. Zwróć wyłącznie poprawny JSON.
-2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+2. Odpowiadaj WYŁĄCZNIE surowym tekstem JSON (bez formatowania Markdown i bloków kodu ```json). Wewnątrz wartości tekstowych używaj wyłącznie pojedynczych apostrofów ('), unikaj podwójnych cudzysłowów ("), aby nie zepsuć parsowania JSON.
 3. Każde zastosowanie z "kanoniczna_lista_zastosowan_do_dalszej_analizy" musi zostać przeanalizowane osobno.
 4. Nie pomijaj żadnego wskazania ani zastosowania z poprzedniego kroku.
 5. Oddzielaj zastosowania podane wprost od wniosków i hipotez contentowych.
@@ -446,10 +446,10 @@ Seed keyword to krótka fraza bazowa, która po wpisaniu w Ahrefs może odkryć 
 
 Nie generujesz long-taili, tytułów artykułów ani fraz poradnikowych. Nie generujesz fraz typu „po bieganiu”, „zimą”, „dla dzieci”, „jak stosować”, jeśli nie są samodzielnym głównym tematem. Ahrefs odkryje takie rozwinięcia później.
 
-ZABRONIONE FRAZY:
-- Nie generuj ogólnych form produktu (np. "maść", "krem", "spray", "tabletki", "lek bez recepty").
-- Nie generuj ogólnych kategorii (np. "kosmetyki").
-- Nie generuj pojedynczych składników w oderwaniu od kontekstu problemu, jeśli nie stanowią samodzielnej, popularnej frazy SEO w tym segmencie.
+ZABRONIONE FRAZY (ABSOLUTNY ZAKAZ GENEROWANIA):
+- Nie generuj form produktu w oderwaniu od problemu (BEZWZGLĘDNIE ZAKAZANE: "maść", "krem", "spray", "tabletki", "lek bez recepty", "lek", "żel", "syrop").
+- Nie generuj ogólnych kategorii (BEZWZGLĘDNIE ZAKAZANE: "kosmetyki", "leki", "suplementy").
+- Nie generuj pojedynczych składników w oderwaniu od kontekstu problemu, jeśli nie stanowią samodzielnej, popularnej frazy SEO.
 
 Twoim celem jest zwrócenie fraz bazowych najbliższych produktowi:
 * wskazań,
@@ -558,9 +558,9 @@ Twoim zadaniem nie jest tworzenie długich fraz contentowych. Twoim zadaniem jes
 
 Rozszerzona analiza może zawierać sezonowość, sport, pracę fizyczną, grupy odbiorców, skutki uboczne terapii, codzienne sytuacje i konteksty lifestyle’owe. Nie oznacza to, że masz generować frazy z tymi doprecyzowaniami.
 
-ZABRONIONE FRAZY:
-- Nie generuj ogólnych form produktu (np. "maść", "krem", "spray", "tabletki", "lek bez recepty").
-- Nie generuj ogólnych kategorii (np. "kosmetyki").
+ZABRONIONE FRAZY (ABSOLUTNY ZAKAZ GENEROWANIA):
+- Nie generuj form produktu w oderwaniu od problemu (BEZWZGLĘDNIE ZAKAZANE: "maść", "krem", "spray", "tabletki", "lek bez recepty", "lek", "żel", "syrop").
+- Nie generuj ogólnych kategorii (BEZWZGLĘDNIE ZAKAZANE: "kosmetyki", "leki", "suplementy").
 - Nie generuj pojedynczych składników w oderwaniu od kontekstu problemu.
 
 Masz wyciągnąć z tej analizy tylko najlepsze, bazowe frazy:

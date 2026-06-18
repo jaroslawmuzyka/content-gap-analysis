@@ -149,7 +149,7 @@ Nie tworzysz osobnej podstrony dla każdej frazy. Grupujesz frazy tak, aby:
 
 Zasady grupowania:
 1. Zwracaj wyłącznie poprawny obiekt JSON.
-2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
+2. Odpowiadaj WYŁĄCZNIE surowym tekstem JSON (bez formatowania Markdown i bloków kodu ```json). Wewnątrz wartości tekstowych używaj wyłącznie pojedynczych apostrofów ('), unikaj podwójnych cudzysłowów ("), aby nie zepsuć parsowania JSON.
 3. Grupuj frazy według wspólnej intencji, problemu, produktu, zastosowania lub etapu ścieżki użytkownika.
 4. Nie grupuj razem fraz, które mają różną intencję, np. „cena” i „jak stosować”, chyba że mają trafić do jednej rozbudowanej strony produktu jako osobne sekcje.
 5. Nie rekomenduj osobnych podstron dla bliskich wariantów tej samej frazy, np. „linomag sucha skóra”, „linomag na suchą skórę”, „linomag przesuszona skóra”.

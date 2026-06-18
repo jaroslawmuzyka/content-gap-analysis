@@ -10,7 +10,7 @@ def render(openai_api_key):
         st.warning("Musisz najpierw ukończyć Krok 4 (aby wygenerować pomysły Gap) oraz Krok 6 (aby wgrać własne URLe i Title).")
     else:
         df_gap = st.session_state.df_gap_results
-        df_accepted = df_gap[df_gap['AI Verdict'].str.contains("PASUJE", na=False)]
+        df_accepted = df_gap[df_gap['AI Verdict'] == "PASUJE"]
         df_my = st.session_state.my_pages_df
         
         st.info(f"Do weryfikacji mamy {len(df_accepted)} zaakceptowanych pomysłów na wpisy oraz {len(df_my)} własnych podstron.")
