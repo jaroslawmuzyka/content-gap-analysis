@@ -57,12 +57,16 @@ def render():
                         if col in df_a_clean.columns:
                             df_a_clean[col] = pd.to_numeric(df_a_clean[col], errors='coerce')
                     
-                    df_a_agg = df_a_clean.groupby("URL_Norm").agg(
-                        Ahrefs_Keywords=("Keyword", lambda x: ", ".join(x.dropna().astype(str))),
-                        Ahrefs_Volume=("Volume", "sum"),
-                        Ahrefs_Traffic=("Traffic", "sum"),
-                        Ahrefs_Top_Position=("Position", "min")
-                    ).reset_index()
+                    def ahrefs_agg(x):
+                        return pd.Series({
+                            "Ahrefs_Keywords (ALL)": ", ".join(x["Keyword"].dropna().astype(str)),
+                            "Ahrefs_Keywords (TOP10)": ", ".join(x[x["Position"] <= 10]["Keyword"].dropna().astype(str)),
+                            "Ahrefs_Keywords (TOP3)": ", ".join(x[x["Position"] <= 3]["Keyword"].dropna().astype(str)),
+                            "Ahrefs_Volume": x["Volume"].sum(),
+                            "Ahrefs_Traffic": x["Traffic"].sum()
+                        })
+                    
+                    df_a_agg = df_a_clean.groupby("URL_Norm").apply(ahrefs_agg).reset_index()
                     
                     # Senuto kolumny do pozostawienia i zmiany nazwy
                     senuto_cols_map = {
@@ -86,12 +90,16 @@ def render():
                         if col in df_s_clean.columns:
                             df_s_clean[col] = pd.to_numeric(df_s_clean[col], errors='coerce')
                             
-                    df_s_agg = df_s_clean.groupby("URL_Norm").agg(
-                        Senuto_Keywords=("Keyword", lambda x: ", ".join(x.dropna().astype(str))),
-                        Senuto_Volume=("Volume", "sum"),
-                        Senuto_Traffic=("Traffic", "sum"),
-                        Senuto_Top_Position=("Position", "min")
-                    ).reset_index()
+                    def senuto_agg(x):
+                        return pd.Series({
+                            "Senuto_Keywords (ALL)": ", ".join(x["Keyword"].dropna().astype(str)),
+                            "Senuto_Keywords (TOP10)": ", ".join(x[x["Position"] <= 10]["Keyword"].dropna().astype(str)),
+                            "Senuto_Keywords (TOP3)": ", ".join(x[x["Position"] <= 3]["Keyword"].dropna().astype(str)),
+                            "Senuto_Volume": x["Volume"].sum(),
+                            "Senuto_Traffic": x["Traffic"].sum()
+                        })
+                        
+                    df_s_agg = df_s_clean.groupby("URL_Norm").apply(senuto_agg).reset_index()
                     
                     # Konsolidacja obu tabel (Outer Join po URL)
                     df_combined = pd.merge(df_s_agg, df_a_agg, on="URL_Norm", how="outer")

@@ -311,11 +311,15 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 }
                 if "temperature" in params_5a: call_a_kwargs["temperature"] = params_5a["temperature"]
                 if "max_tokens" in params_5a:
-                                if any(m in params_5a["model"] for m in ["gpt-5", "o1", "o3"]): call_a_kwargs["max_completion_tokens"] = params_5a["max_tokens"]
-                                else: call_a_kwargs["max_tokens"] = params_5a["max_tokens"]
+                    if any(m in params_5a["model"] for m in ["gpt-5", "o1", "o3"]): call_a_kwargs["max_completion_tokens"] = params_5a["max_tokens"]
+                    else: call_a_kwargs["max_tokens"] = params_5a["max_tokens"]
                 if "reasoning_effort" in params_5a: call_a_kwargs["reasoning_effort"] = params_5a["reasoning_effort"]
                     
                 resp_a = client.chat.completions.create(**call_a_kwargs)
+                if resp_a.usage:
+                    from utils.helpers import track_usage
+                    track_usage(params_5a["model"], resp_a.usage.prompt_tokens, resp_a.usage.completion_tokens)
+                        
                 res_a = resp_a.choices[0].message.content.strip()
                 
                 try:
@@ -354,6 +358,10 @@ Zwróć wyłącznie poprawny JSON w strukturze:
             if "reasoning_effort" in params_5b: call_b_kwargs["reasoning_effort"] = params_5b["reasoning_effort"]
                 
             resp_b = client.chat.completions.create(**call_b_kwargs)
+            if resp_b.usage:
+                from utils.helpers import track_usage
+                track_usage(params_5b["model"], resp_b.usage.prompt_tokens, resp_b.usage.completion_tokens)
+                
             from utils.helpers import clean_json
             final_json = json.loads(clean_json(resp_b.choices[0].message.content))
             

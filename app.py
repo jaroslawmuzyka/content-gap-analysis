@@ -27,6 +27,17 @@ with st.sidebar:
         
     st.markdown("---")
     
+    if "total_api_cost" not in st.session_state:
+        st.session_state.total_api_cost = 0.0
+    if "total_tokens" not in st.session_state:
+        st.session_state.total_tokens = {"prompt": 0, "completion": 0}
+        
+    st.markdown(f"### 💸 Koszt AI (Sesja)")
+    st.markdown(f"**Razem:** ${st.session_state.total_api_cost:.4f}")
+    st.caption(f"Tokeny: P {st.session_state.total_tokens['prompt']} | C {st.session_state.total_tokens['completion']}")
+    
+    st.markdown("---")
+    
     step1 = st.button("Krok 1: Wgranie Danych Domeny", use_container_width=True)
     step2 = st.button("Krok 2: Analiza Produktów (Jina + AI)", use_container_width=True)
     step3 = st.button("Krok 3: Generowanie Fraz", use_container_width=True)

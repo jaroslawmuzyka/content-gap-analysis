@@ -848,6 +848,8 @@ Napisz krótkie, decyzyjne podsumowanie:
                     if content:
                         content_clipped = content[:8000]
                         
+                        from utils.helpers import track_usage
+                        
                         # --- PROMPT 1 ---
                         prompt_1 = step2_user_1.replace("{url}", url).replace("{content}", content_clipped)
                         call_1_kwargs = {"model": params_1["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_1}, {"role": "user", "content": prompt_1}]}
@@ -856,7 +858,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                                 if any(m in params_1["model"] for m in ["gpt-5", "o1", "o3"]): call_1_kwargs["max_completion_tokens"] = params_1["max_tokens"]
                                 else: call_1_kwargs["max_tokens"] = params_1["max_tokens"]
                         if "reasoning_effort" in params_1: call_1_kwargs["reasoning_effort"] = params_1["reasoning_effort"]
-                        r1 = client.chat.completions.create(**call_1_kwargs).choices[0].message.content
+                        resp1 = client.chat.completions.create(**call_1_kwargs)
+                        r1 = resp1.choices[0].message.content
+                        if resp1.usage: track_usage(params_1["model"], resp1.usage.prompt_tokens, resp1.usage.completion_tokens)
                         
                         # --- PROMPT 2 ---
                         prompt_2 = step2_user_2.replace("{product_facts_json}", r1)
@@ -866,7 +870,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                                 if any(m in params_2["model"] for m in ["gpt-5", "o1", "o3"]): call_2_kwargs["max_completion_tokens"] = params_2["max_tokens"]
                                 else: call_2_kwargs["max_tokens"] = params_2["max_tokens"]
                         if "reasoning_effort" in params_2: call_2_kwargs["reasoning_effort"] = params_2["reasoning_effort"]
-                        r2 = client.chat.completions.create(**call_2_kwargs).choices[0].message.content
+                        resp2 = client.chat.completions.create(**call_2_kwargs)
+                        r2 = resp2.choices[0].message.content
+                        if resp2.usage: track_usage(params_2["model"], resp2.usage.prompt_tokens, resp2.usage.completion_tokens)
                         
                         # --- PROMPT 3 ---
                         prompt_3 = step2_user_3.replace("{product_facts_json}", r1).replace("{max_keywords}", "30")
@@ -876,7 +882,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                                 if any(m in params_3["model"] for m in ["gpt-5", "o1", "o3"]): call_3_kwargs["max_completion_tokens"] = params_3["max_tokens"]
                                 else: call_3_kwargs["max_tokens"] = params_3["max_tokens"]
                         if "reasoning_effort" in params_3: call_3_kwargs["reasoning_effort"] = params_3["reasoning_effort"]
-                        r3 = client.chat.completions.create(**call_3_kwargs).choices[0].message.content
+                        resp3 = client.chat.completions.create(**call_3_kwargs)
+                        r3 = resp3.choices[0].message.content
+                        if resp3.usage: track_usage(params_3["model"], resp3.usage.prompt_tokens, resp3.usage.completion_tokens)
                         
                         # --- PROMPT 4 ---
                         prompt_4 = step2_user_4.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2).replace("{max_keywords}", "50")
@@ -886,7 +894,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                                 if any(m in params_4["model"] for m in ["gpt-5", "o1", "o3"]): call_4_kwargs["max_completion_tokens"] = params_4["max_tokens"]
                                 else: call_4_kwargs["max_tokens"] = params_4["max_tokens"]
                         if "reasoning_effort" in params_4: call_4_kwargs["reasoning_effort"] = params_4["reasoning_effort"]
-                        r4 = client.chat.completions.create(**call_4_kwargs).choices[0].message.content
+                        resp4 = client.chat.completions.create(**call_4_kwargs)
+                        r4 = resp4.choices[0].message.content
+                        if resp4.usage: track_usage(params_4["model"], resp4.usage.prompt_tokens, resp4.usage.completion_tokens)
                         
                         # --- PROMPT 5 ---
                         prompt_5 = step2_user_5.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2)
@@ -896,7 +906,9 @@ Napisz krótkie, decyzyjne podsumowanie:
                                 if any(m in params_5["model"] for m in ["gpt-5", "o1", "o3"]): call_5_kwargs["max_completion_tokens"] = params_5["max_tokens"]
                                 else: call_5_kwargs["max_tokens"] = params_5["max_tokens"]
                         if "reasoning_effort" in params_5: call_5_kwargs["reasoning_effort"] = params_5["reasoning_effort"]
-                        r5 = client.chat.completions.create(**call_5_kwargs).choices[0].message.content
+                        resp5 = client.chat.completions.create(**call_5_kwargs)
+                        r5 = resp5.choices[0].message.content
+                        if resp5.usage: track_usage(params_5["model"], resp5.usage.prompt_tokens, resp5.usage.completion_tokens)
                         
                         d1, d2, d3, d4 = {}, {}, {}, {}
                         from utils.helpers import clean_json

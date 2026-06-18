@@ -15,6 +15,32 @@ def to_excel(df):
         df.to_excel(writer, index=False, sheet_name='Sheet1')
     return output.getvalue()
 
+import streamlit as st
+
+PRICING = {
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "gpt-5.4-mini": {"input": 0.15, "output": 0.60},
+    "gpt-4o": {"input": 5.00, "output": 15.00},
+    "gpt-5.5": {"input": 5.00, "output": 15.00},
+    "o1-mini": {"input": 3.00, "output": 12.00},
+    "gpt-4-turbo": {"input": 10.00, "output": 30.00},
+    "gpt-3.5-turbo": {"input": 0.50, "output": 1.50},
+    "o3-mini": {"input": 3.00, "output": 12.00},
+}
+
+def track_usage(model_name, prompt_tokens, completion_tokens):
+    if "total_api_cost" not in st.session_state:
+        st.session_state.total_api_cost = 0.0
+    if "total_tokens" not in st.session_state:
+        st.session_state.total_tokens = {"prompt": 0, "completion": 0}
+        
+    rates = PRICING.get(model_name, PRICING["gpt-4o-mini"])
+    cost = (prompt_tokens / 1000000.0) * rates["input"] + (completion_tokens / 1000000.0) * rates["output"]
+    
+    st.session_state.total_api_cost += cost
+    st.session_state.total_tokens["prompt"] += prompt_tokens
+    st.session_state.total_tokens["completion"] += completion_tokens
+
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 

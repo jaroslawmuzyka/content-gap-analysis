@@ -123,9 +123,9 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                     if u:
                         my_pages_context += f"- {u} (Title: {t})\n"
                         
-                if len(my_pages_context) > 80000:
-                    st.warning("Ostrzeżenie: Twoja lista własnych stron jest długa. Obcinam do pierwszych 80k znaków, by nie przekroczyć limitu modelu.")
-                    my_pages_context = my_pages_context[:80000]
+                if len(my_pages_context) > 400000:
+                    st.warning("Ostrzeżenie: Twoja lista własnych stron jest bardzo długa. Obcinam do pierwszych 400k znaków (ok. 4000 URLi), aby nie przekroczyć maksymalnego limitu 128 tys. tokenów dla modelu.")
+                    my_pages_context = my_pages_context[:400000]
                 
                 progress_text = "Weryfikacja istnienia treści..."
                 my_bar = st.progress(0, text=progress_text)
@@ -156,6 +156,10 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                         if "reasoning_effort" in params_7: call_kwargs["reasoning_effort"] = params_7["reasoning_effort"]
                             
                         ai_response = client.chat.completions.create(**call_kwargs)
+                        if ai_response.usage:
+                            from utils.helpers import track_usage
+                            track_usage(params_7["model"], ai_response.usage.prompt_tokens, ai_response.usage.completion_tokens)
+                            
                         ans = ai_response.choices[0].message.content.strip()
                         import json
                         from utils.helpers import clean_json

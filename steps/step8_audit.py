@@ -188,6 +188,10 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                         if "reasoning_effort" in params_8: call_kwargs["reasoning_effort"] = params_8["reasoning_effort"]
                             
                         ai_response = client.chat.completions.create(**call_kwargs)
+                        if ai_response.usage:
+                            from utils.helpers import track_usage
+                            track_usage(params_8["model"], ai_response.usage.prompt_tokens, ai_response.usage.completion_tokens)
+                            
                         ans = ai_response.choices[0].message.content.strip()
                         
                         try:
