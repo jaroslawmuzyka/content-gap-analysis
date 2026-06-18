@@ -117,33 +117,31 @@ def get_step2_excel_sheets(product_analysis_list):
             "Grupy Docelowe": grupy_str
         })
         
-        # P2 - Analiza Zastosowań
-        analiza_zastosowan = j2.get("analiza_zastosowan") or []
-        if not isinstance(analiza_zastosowan, list): analiza_zastosowan = []
-        for zast in analiza_zastosowan:
+        # P2 - Analiza Zastosowań (Nowa struktura: Insighty)
+        insighty = j2.get("najwazniejsze_insighty") or []
+        if not isinstance(insighty, list): insighty = []
+        for zast in insighty:
             if isinstance(zast, dict):
                 p2_zastosowania_data.append({
                     "URL": url,
-                    "Zastosowanie": zast.get("zastosowanie", ""),
-                    "Typ": zast.get("typ", ""),
+                    "Insight": zast.get("insight", ""),
+                    "Związek": zast.get("zwiazek_przyczynowo_skutkowy", ""),
+                    "Problem Użytkownika": zast.get("problem_uzytkownika", ""),
                     "Rola Produktu": zast.get("rola_produktu", ""),
-                    "Poziom Pewności": zast.get("poziom_pewnosci", ""),
+                    "Bezpieczny Kierunek": zast.get("bezpieczny_kierunek_contentu", ""),
+                    "Dopasowanie": zast.get("dopasowanie_do_produktu", ""),
                     "Wymaga Weryfikacji": str(zast.get("wymaga_weryfikacji", ""))
                 })
         
-        # P2 - Profil Strategiczny
-        strat = j2.get("profil_strategiczny_produktu") or {}
-        if not isinstance(strat, dict): strat = {}
+        # P2 - Profil Strategiczny (Nowa struktura: Podsumowanie)
         podsumowanie = j2.get("podsumowanie") or {}
         if not isinstance(podsumowanie, dict): podsumowanie = {}
         
         p2_strategia_data.append({
             "URL": url,
-            "Główna Rola Produktu": strat.get("glowna_rola_produktu", ""),
-            "Największa Szansa Contentowa": strat.get("najwieksza_szansa_contentowa", ""),
-            "Ograniczenia Komunikacyjne": strat.get("ograniczenia_komunikacyjne", ""),
-            "Najważniejszy Wniosek": podsumowanie.get("najwazniejszy_wniosek", ""),
-            "Największe Ryzyko": podsumowanie.get("najwieksze_ryzyko", "")
+            "Najlepszy Punkt Zaczepienia": podsumowanie.get("najlepszy_punkt_zaczepienia", ""),
+            "Największa Szansa Contentowa": podsumowanie.get("najwieksza_szansa_contentowa", ""),
+            "Największe Ryzyko Nadużycia": podsumowanie.get("najwieksze_ryzyko_naduzycia", "")
         })
         
         # P3 - Frazy z Faktów

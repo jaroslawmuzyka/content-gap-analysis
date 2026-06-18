@@ -25,7 +25,7 @@ def render(openai_api_key):
         models_list = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
         reasoning_efforts = ["low", "medium", "high"]
         
-        template_all = st.radio("Szablon Ustawień:", ["Domyślny (Ręczne parametry)", "Rekomendowany (Kaskada GPT-5.5 -> GPT-5.4-mini)"], index=1, key="template_all")
+        template_all = st.radio("Szablon Ustawień:", ["Domyślny (Ręczne parametry)", "Rekomendowany (Kaskada GPT-5.5 -> GPT-5.4-mini)"], index=0, key="template_all")
         
         if template_all == "Rekomendowany (Kaskada GPT-5.5 -> GPT-5.4-mini)":
             st.info("Zastosowano kaskadę 5 promptów (wg. nowych zaleceń).")
@@ -235,205 +235,91 @@ Zwróć wyłącznie JSON o poniższej strukturze. Odpowiadaj WYŁĄCZNIE surowym
 }"""
 
         # PROMPT 2
-        sys_2_def = """Jesteś analitykiem medyczno-kosmetycznym, strategiem SEO, product managerem i strategiem contentowym.
+        sys_2_def = """Jesteś analitykiem medyczno-kosmetycznym, strategiem SEO i strategiem contentowym.
 
-Twoim zadaniem jest wykonanie rozszerzonej analizy produktu na podstawie uporządkowanych faktów z poprzedniego kroku.
+Twoim zadaniem jest znalezienie nieoczywistych, ale logicznych i bezpiecznych punktów zaczepienia dla produktu na podstawie uporządkowanych faktów z poprzedniego kroku.
 
-Nie analizujesz już surowej strony. Analizujesz skonsolidowane fakty o produkcie.
+Nie analizujesz surowej strony. Analizujesz wyłącznie skonsolidowane fakty o produkcie.
 
 Cel:
-Masz zbudować pełną mapę zastosowań produktu, przyczyn problemów, skutków, grup odbiorców, sezonowości, kontekstów lifestyle’owych, kontekstów medyczno-kosmetycznych oraz szans contentowych.
+Znajdź dodatkowe konteksty, sytuacje, grupy odbiorców i związki przyczynowo-skutkowe, które mogą prowadzić do sensownych tematów contentowych.
+
+Nie chodzi o ponowne wypisanie wskazań ze strony. Chodzi o odkrycie, co może wynikać z tych wskazań.
+
+Przykłady dobrego myślenia:
+* produkt na suchą skórę → sucha skóra nasila się zimą → temat o pielęgnacji skóry zimą,
+* produkt na suchość skóry → terapia przeciwtrądzikowa może wysuszać skórę → temat o pielęgnacji skóry podczas terapii przeciwtrądzikowej,
+* produkt na otarcia → sportowcy często mają otarcia → temat o ochronie skóry przy bieganiu lub jeździe na rowerze,
+* produkt wspiera barierę skóry → można rozważyć tematy o regeneracji bariery skórnej.
 
 Zasady:
 1. Zwróć wyłącznie poprawny JSON.
 2. Odpowiadaj WYŁĄCZNIE surowym tekstem JSON (bez formatowania Markdown i bloków kodu ```json). Wewnątrz wartości tekstowych używaj wyłącznie pojedynczych apostrofów ('), unikaj podwójnych cudzysłowów ("), aby nie zepsuć parsowania JSON.
-3. Każde zastosowanie z "kanoniczna_lista_zastosowan_do_dalszej_analizy" musi zostać przeanalizowane osobno.
-4. Nie pomijaj żadnego wskazania ani zastosowania z poprzedniego kroku.
-5. Oddzielaj zastosowania podane wprost od wniosków i hipotez contentowych.
-6. Nie sugeruj leczenia problemów, których produkt nie leczy według danych źródłowych.
-7. Jeżeli produkt łagodzi objawy albo wspiera regenerację, nie zmieniaj tego w claim "leczy chorobę".
-8. Jeżeli analizujesz chorobę, leczenie, dzieci, niemowlęta, ciążę, rany, infekcje, alergie, łuszczycę, wyprysk lub inne stany medyczne, ustaw "wymaga_weryfikacji": true.
-9. Jeżeli wniosek wynika z ogólnej logiki, ale nie z treści strony, oznacz go jako "wniosek".
-10. Jeżeli temat jest pomysłem contentowym wykraczającym poza treść, oznacz go jako "hipoteza_contentowa".
-11. Pisz konkretnie, praktycznie i pod kątem późniejszego SEO."""
+3. Nie wymyślaj właściwości produktu.
+4. Nie sugeruj leczenia problemów, których produkt nie leczy według faktów źródłowych.
+5. Jeżeli produkt łagodzi objawy, nie zmieniaj tego w claim „leczy chorobę”.
+6. Każdy insight musi mieć jasny związek: fakt o produkcie → przyczyna/kontekst → problem użytkownika → bezpieczny kierunek contentu.
+7. Nie generuj kontekstów zbyt ogólnych, np. „zdrowie”, „uroda”, „sport”, „zima”, jeśli nie są połączone z konkretnym problemem.
+8. Jeżeli związek jest pośredni, oznacz to jako "pośredni".
+9. Jeżeli temat wymaga ostrożności medycznej, prawnej lub regulatory, ustaw "wymaga_weryfikacji": true.
+10. Lepiej zwrócić mniej, ale trafniejszych insightów.
+11. Pisz konkretnie i pod SEO."""
         
-        usr_2_def = """Wykonaj rozszerzoną analizę produktu na podstawie skonsolidowanych faktów z poprzedniego kroku.
+        usr_2_def = """Znajdź nieoczywiste punkty zaczepienia dla produktu na podstawie skonsolidowanych faktów.
 
 Dane wejściowe:
 {product_facts_json}
 
-Cel analizy:
-Chcę wiedzieć, do jakich problemów, sytuacji, grup odbiorców i tematów contentowych można bezpiecznie dopasować produkt.
+Cel:
+Chcę znaleźć dodatkowe tematy i konteksty, które nie zawsze są wprost opisane na stronie produktu, ale logicznie wynikają z jego wskazań, działania lub problemów, które rozwiązuje.
 
-Nie chcę tylko listy wskazań. Chcę pełen związek przyczynowo-skutkowy:
-problem → przyczyna → objaw/skutek → sytuacja życiowa → grupa odbiorców → rola produktu → bezpieczny temat contentowy.
+Nie powtarzaj tylko wskazań ze strony. Szukaj zależności typu:
+fakt o produkcie → przyczyna lub kontekst → problem użytkownika → rola produktu → bezpieczny temat contentowy
 
-Zwróć uwagę na:
-* każde wskazanie z produktu,
-* przyczyny każdego problemu,
-* skutki i objawy,
-* sezonowość,
-* sport i aktywność,
-* pracę fizyczną,
-* podróże,
-* pielęgnację codzienną,
-* dzieci, dorosłych, seniorów i inne grupy,
-* leczenie lub terapie, które mogą powodować problemy wtórne,
-* konteksty, gdzie produkt może być wsparciem, ale nie rozwiązaniem problemu pierwotnego,
-* ryzykowne claimy,
-* bezpieczne kierunki komunikacji,
-* tematy artykułów,
-* zdjęcia, grafiki i sekcje na stronie.
+Szukaj zwłaszcza:
+* sezonowości,
+* aktywności fizycznej,
+* tarcia, potu, pracy fizycznej i odzieży,
+* terapii lub leków, które mogą powodować problemy wtórne,
+* czynników zewnętrznych, np. mróz, wiatr, ogrzewanie, klimatyzacja, słońce,
+* grup odbiorców, które mogą mieć dany problem,
+* codziennych sytuacji, w których problem się pojawia,
+* problemów wtórnych, gdzie produkt może być wsparciem, ale nie rozwiązaniem problemu pierwotnego.
 
-Zwróć wyłącznie JSON w strukturze:
+Zwróć wyłącznie JSON:
 {
-"profil_strategiczny_produktu": {
-"krotki_opis": "",
-"glowna_rola_produktu": "",
-"najwazniejsze_obszary_zastosowan": [],
-"czy_produkt_ma_wiele_zastosowan": true,
-"najwazniejsze_ograniczenie_komunikacyjne": "",
-"najwieksza_szansa_contentowa": ""
-},
-"analiza_zastosowan": [
-{
-"zastosowanie": "",
-"podstawa_zrodlowa": "wprost_z_tresci | wniosek | hipoteza_contentowa",
-"typ": "choroba | objaw | stan_skory | problem_kosmetyczny | zastosowanie | mechanizm | claim | inne",
-"problem_uzytkownika": "",
-"czy_produkt_odpowiada_bezposrednio": true,
-"czy_produkt_jest_wsparciem": true,
-"rola_produktu": "",
-"mechanizm_powiazany_z_produktem": "",
-"przyczyny": [
-{
-"przyczyna": "",
-"mechanizm_przyczynowo_skutkowy": "",
-"przyklad_sytuacji": "",
-"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
-"poziom_pewnosci": "wysoki | sredni | niski"
-}
-],
-"objawy_i_skutki": [
-{
-"objaw_lub_skutek": "",
-"dlaczego_wystepuje": "",
-"jak_laczy_sie_z_produktem": "",
-"czy_mozna_komunikowac_wprost": true,
-"ryzyko_claimu": "niskie | srednie | wysokie"
-}
-],
-"grupy_odbiorcow": [
-{
-"grupa": "",
-"dlaczego_dotyczy_tej_grupy": "",
-"typowe_sytuacje": [],
-"potrzeby_i_obawy": [],
-"bezpieczny_komunikat": "",
-"czego_nie_sugerowac": "",
-"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
-"wymaga_weryfikacji": true
-}
-],
-"konteksty_sezonowe": [
-{
-"kontekst": "",
-"pora_roku_lub_warunki": "",
-"problem": "",
-"jak_polaczyc_z_produktem": "",
-"pomysl_na_content": "",
-"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
-"wymaga_weryfikacji": true
-}
-],
-"konteksty_lifestyle": [
-{
-"kontekst": "",
-"sytuacja_lub_aktywnosc": "",
-"problem": "",
-"jak_polaczyc_z_produktem": "",
-"pomysl_na_content": "",
-"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
-"wymaga_weryfikacji": true
-}
-],
-"konteksty_medyczno_kosmetyczne": [
-{
-"problem_pierwotny": "",
-"problem_wtorny": "",
-"zwiazek_przyczynowo_skutkowy": "",
-"rola_produktu": "",
-"bezpieczne_zawężenie_tematu": "",
-"czego_nie_sugerowac": "",
-"status": "wprost_z_tresci | wniosek | hipoteza_contentowa",
-"wymaga_weryfikacji": true
-}
-],
-"claimy_bezpieczne": [],
-"claimy_ryzykowne_lub_do_unikania": [],
-"tematy_contentowe": [
-{
-"temat": "",
-"proponowany_tytul": "",
-"proponowany_h1": "",
-"intencja": "informacyjna | poradnikowa | problemowa | sezonowa | produktowa | porownawcza",
-"sekcje_artykulu": [],
-"jak_naturalnie_polaczyc_z_produktem": "",
-"pomysl_na_zdjecie_lub_grafike": "",
-"priorytet": "wysoki | sredni | niski",
-"uzasadnienie": ""
-}
-],
-"poziom_pewnosci": "wysoki | sredni | niski",
-"wymaga_weryfikacji": true
-}
-],
-"mapa_grup_odbiorcow": [
-{
-"grupa": "",
-"problemy": [],
-"sytuacje_wyzwalajace_problem": [],
-"potrzeby": [],
-"obawy": [],
-"najlepszy_kierunek_contentu": "",
-"powiazane_zastosowania_produktu": [],
-"priorytet": "wysoki | sredni | niski"
-}
-],
-"nietypowe_insighty": [
+"najwazniejsze_insighty": [
 {
 "insight": "",
-"dlaczego_nie_jest_oczywisty": "",
+"punkt_wyjscia_z_faktow": "",
 "zwiazek_przyczynowo_skutkowy": "",
-"jak_wykorzystac_w_seo": "",
-"przykladowy_temat": "",
-"powiazane_zastosowanie": "",
-"poziom_pewnosci": "wysoki | sredni | niski",
-"wymaga_weryfikacji": true
-}
-],
-"luki_i_szanse_na_stronie": [
-{
-"luka_lub_szansa": "",
-"powiazane_zastosowanie": "",
-"dlaczego_to_wazne": "",
-"co_dodac": "",
-"typ_materialu": "sekcja_produktowa | artykul | FAQ | grafika | zdjecie | tabela | linkowanie_wewnetrzne | ostrzezenie | inne",
+"problem_uzytkownika": "",
+"rola_produktu": "",
+"bezpieczny_kierunek_contentu": "",
+"dopasowanie_do_produktu": "mocne | srednie | pośrednie",
+"czego_nie_sugerowac": "",
+"wymaga_weryfikacji": true,
 "priorytet": "wysoki | sredni | niski"
 }
 ],
-"bezpieczne_ramowanie_komunikacji": {
-"mozna_komunikowac": [],
-"komunikowac_ostroznie": [],
-"nie_komunikowac_bez_weryfikacji": [],
-"wymaga_sprawdzenia_z_regulatory_lub_ekspertem": []
+"konteksty_do_rozwazenia": {
+"sezonowe": [],
+"lifestyle": [],
+"medyczno_kosmetyczne": [],
+"codzienne": [],
+"grupy_odbiorcow": []
 },
+"tematy_ryzykowne_lub_do_odrzucenia": [
+{
+"temat": "",
+"dlaczego_ryzykowny": "",
+"bezpieczniejsze_zawężenie": ""
+}
+],
 "podsumowanie": {
-"najwazniejszy_wniosek": "",
-"najlepsze_grupy_odbiorcow": [],
-"najlepsze_konteksty_contentowe": [],
-"najwieksze_ryzyko": "",
-"co_sprawdzic_przed_publikacja": []
+"najlepszy_punkt_zaczepienia": "",
+"najwieksza_szansa_contentowa": "",
+"najwieksze_ryzyko_naduzycia": ""
 }
 }"""
 
@@ -1106,16 +992,14 @@ Napisz krótkie, decyzyjne podsumowanie:
                 c3.metric("Kategoria", p1.get("kategoria", "Brak"))
                 
                 st.markdown("### 🎯 Strategia & Wnioski")
-                strat = j2.get("profil_strategiczny_produktu", {})
-                if strat:
-                    st.info(f"**Główna Rola:** {strat.get('glowna_rola_produktu', '')}\n\n**Szansa Contentowa:** {strat.get('najwieksza_szansa_contentowa', '')}")
-                
                 podsumowanie = j2.get("podsumowanie", {})
                 if podsumowanie:
-                    if podsumowanie.get("najwazniejszy_wniosek"):
-                        st.success(f"**Najważniejszy wniosek:** {podsumowanie.get('najwazniejszy_wniosek')}")
-                    if podsumowanie.get("najwieksze_ryzyko"):
-                        st.warning(f"**Największe ryzyko:** {podsumowanie.get('najwieksze_ryzyko')}")
+                    if podsumowanie.get("najlepszy_punkt_zaczepienia"):
+                        st.info(f"**Najlepszy Punkt Zaczepienia:** {podsumowanie.get('najlepszy_punkt_zaczepienia')}")
+                    if podsumowanie.get("najwieksza_szansa_contentowa"):
+                        st.success(f"**Szansa Contentowa:** {podsumowanie.get('najwieksza_szansa_contentowa')}")
+                    if podsumowanie.get("najwieksze_ryzyko_naduzycia"):
+                        st.warning(f"**Największe ryzyko:** {podsumowanie.get('najwieksze_ryzyko_naduzycia')}")
                 
                 st.markdown("### 🔑 Słowa Kluczowe")
                 seed_kw = item.get("seed_keywords", [])
