@@ -290,7 +290,7 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                         if df_ready is not None:
                             df_current = pd.concat([df_ready, df_current], ignore_index=True)
                         table_placeholder.dataframe(df_current)
-                        to_excel(df_current, "temp_verification_results_backup.xlsx")
+                        df_current.to_excel("temp_verification_results_backup.xlsx", index=False)
                 
                 if not results_verified and len(df_accepted_to_process) > 0:
                     st.error("Nie udało się zweryfikować żadnego z pozostałych pomysłów.")
