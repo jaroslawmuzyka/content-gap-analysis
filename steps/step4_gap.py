@@ -48,12 +48,12 @@ Jeżeli URL konkurencji dotyczy bardzo specyficznej odmiany problemu lub specyfi
 Wyjątek: Jeżeli specyficzna lokalizacja jest naturalnym podzbiorem przeznaczenia ogólnego (np. 'ból ręki' dla ogólnej tabletki przeciwbólowej, 'łuszczyca dłoni' dla ogólnej maści na skórę) i z logiki medycznej oraz postaci produktu (tabletka, maść, syrop) wynika, że zadziała on w tym miejscu (np. działa ogólnoustrojowo lub można go tam bezpiecznie posmarować) - zwróć PASUJE.
 
 Zasady akceptacji:
-1. Zwróć "PASUJE" tylko wtedy, gdy URL lub Title wyraźnie wskazuje temat, który jest mocno zgodny z produktem według dostarczonego Kontekstu Produktu.
-2. Możesz zwrócić "PASUJE" dla tematu warunkowego tylko wtedy, gdy URL lub Title jasno zawęża temat do problemu, skutku, objawu albo potrzeby, którą produkt rzeczywiście adresuje.
+1. Zwróć "PASUJE" tylko wtedy, gdy URL lub Title wyraźnie wskazuje temat, który jest mocno zgodny z PRZYNAJMNIEJ JEDNYM produktem według dostarczonego Kontekstu Produktów.
+2. Możesz zwrócić "PASUJE" dla tematu warunkowego tylko wtedy, gdy URL lub Title jasno zawęża temat do problemu, skutku, objawu albo potrzeby, którą konkretny produkt rzeczywiście adresuje.
 3. Jeżeli produkt wspiera objaw lub skutek problemu, ale nie problem pierwotny, zaakceptuj tylko wtedy, gdy URL lub Title dotyczy tego objawu lub skutku.
-4. Jeżeli produkt łagodzi objawy choroby, można zaakceptować temat o objawach tej choroby, ale nie temat sugerujący leczenie choroby, jeśli nie wynika to z dostarczonego Kontekstu Produktu.
-5. Jeżeli temat jest poradnikowy, edukacyjny lub problemowy i mieści się w granicach produktu, możesz zaakceptować.
-6. Jeżeli istnieje kilka produktów, wybierz ten, który jest najlepiej dopasowany.
+4. Jeżeli produkt łagodzi objawy choroby, można zaakceptować temat o objawach tej choroby, ale nie temat sugerujący leczenie choroby, jeśli nie wynika to z dostarczonego Kontekstu Produktów.
+5. Jeżeli temat jest poradnikowy, edukacyjny lub problemowy i mieści się w granicach któregoś produktu, możesz zaakceptować.
+6. UWAGA: Masz do dyspozycji listę KILKU produktów. Musisz ocenić potencjał dopasowania strony do KAŻDEGO z nich. Zwróć jako `produkt` ten, który jest NAJLEPIEJ dopasowany. Jeśli pasuje więcej niż jeden produkt, wskaż ten o najsilniejszym kontekście.
 
 Zasady odrzucenia:
 1. Zwróć "NIE_PASUJE", jeśli temat jest tylko luźno powiązany z produktem.
@@ -159,13 +159,14 @@ Zwróć wyłącznie poprawny JSON:
                         target_title = row.get("Title", "")
                         
                         prompt = step4_user.replace("{target_url}", target_url).replace("{target_title}", target_title).replace("{products_context}", products_context)
+                        sys_prompt = step4_sys.replace("{products_context}", products_context)
                         
                         try:
                             call_4_kwargs = {
                                 "model": params_4["model"],
                                 "response_format": { "type": "json_object" },
                                 "messages": [
-                                    {"role": "system", "content": step4_sys},
+                                    {"role": "system", "content": sys_prompt},
                                     {"role": "user", "content": prompt}
                                 ]
                             }

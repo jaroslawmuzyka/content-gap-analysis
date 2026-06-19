@@ -39,6 +39,18 @@ def render():
         
         st.write(f"Ilość wszystkich fraz łącznie (po deduplikacji): **{len(all_ordered)}**")
         
+        st.markdown("""
+        ### Instrukcja do Ahrefs
+        1. Skopiuj wszystkie frazy i wklej do **Ahrefs (Keyword explorer)**: [https://app.ahrefs.com/keywords-explorer](https://app.ahrefs.com/keywords-explorer)
+        2. Przejdź do zakładki **"Matching terms"** i przefiltruj dane:
+           - Oznacz np. `Volume` na poziomie od **10**.
+           - Ustaw `Intents` na **Non-branded** *(nie chcemy analizować słów brandowych, zarówno własnych jak i konkurencji)*.
+        3. Skopiuj wszystkie widoczne frazy kluczowe (max 10 000) i **wklej je ponownie w Keyword Explorer**.
+        4. Z lewego menu wybierz pole **Traffic Share** -> **"By page"**.
+        5. Wyeksportuj dane, a następnie ręcznie w Excelu **usuń wiersze np. z trafficem poniżej 10** *(nie chcemy pisać na tematy, które nie będą zbierały ruchu)*.
+        6. Zapisz plik. Wykorzystasz go w kolejnym **Kroku 4**!
+        """)
+        
         tab1, tab2, tab3, tab4 = st.tabs(["Wszystkie frazy", "Frazy AI", "Frazy Senuto", "Frazy Ahrefs"])
         
         with tab1:
