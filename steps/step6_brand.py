@@ -301,21 +301,8 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 brand_data.extend(extract_data(df_b_senuto))
             except Exception as e:
                 st.error(f"Błąd parsowania Senuto: {e}")
-                
-        if not brand_data:
-            st.warning("Nie znaleziono poprawnych fraz w plikach.")
-            return
-            
-        # Deduplicate
-        seen = set()
-        unique_brand_data = []
-        for item in brand_data:
-            if item["keyword"] not in seen:
-                seen.add(item["keyword"])
-                unique_brand_data.append(item)
-                
-        st.info(f"Znaleziono {len(unique_brand_data)} unikalnych zapytań brandowych. Rozpoczynam Etap 1: Analiza każdej frazy...")
-        
+
+        # Budowanie kontekstu jest potrzebne dla obu etapów
         products_analysis_context = "Lista naszych produktów wraz z analizą:\n"
         if "product_analysis" in st.session_state:
             for item in st.session_state.product_analysis:
@@ -343,105 +330,116 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         full_context = f"--- PRODUKTY KLIENTA ---\n{products_context}\n\n--- WŁASNE STRONY KLIENTA ---\n{user_pages_context}"
         
         client = openai.OpenAI(api_key=openai_api_key)
-        
+
         # Etap 1: Analiza pojedynczych fraz (tylko jeśli brak ich w sesji)
         if "brand_analysis_results" not in st.session_state:
+            if not brand_data:
+                st.warning("Nie znaleziono poprawnych fraz w plikach.")
+                return
+                
+            # Deduplicate
+            seen = set()
+            unique_brand_data = []
+            for item in brand_data:
+                if item["keyword"] not in seen:
+                    seen.add(item["keyword"])
+                    unique_brand_data.append(item)
+                    
+            st.info(f"Znaleziono {len(unique_brand_data)} unikalnych zapytań brandowych. Rozpoczynam Etap 1: Analiza każdej frazy...")
+
             analyzed_keywords = []
             my_bar_1 = st.progress(0, text="Analiza fraz w toku...")
             st.markdown("### Podgląd wyników na żywo (Etap 1):")
             table_placeholder = st.empty()
             
             import time
-        batch_size = 15
-        
-        for i in range(0, len(unique_brand_data), batch_size):
-            batch = unique_brand_data[i:i+batch_size]
+            batch_size = 15
             
-            batch_data_list = []
-            for idx, item in enumerate(batch):
-                batch_data_list.append({
-                    "id": i + idx,
-                    "keyword": str(item["keyword"]),
-                    "position": str(item["position"]),
-                    "volume": str(item["volume"])
-                })
+            for i in range(0, len(unique_brand_data), batch_size):
+                batch = unique_brand_data[i:i+batch_size]
                 
-            batch_data_str = json.dumps(batch_data_list, ensure_ascii=False)
-            prompt = step5_user_a.replace("{batch_data}", batch_data_str).replace("{products_context}", products_analysis_context)
-            
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    call_a_kwargs = {
-                        "model": params_5a["model"],
-                        "response_format": { "type": "json_object" },
-                        "messages": [
-                            {"role": "system", "content": step5_sys_a},
-                            {"role": "user", "content": prompt}
-                        ]
-                    }
-                    if "temperature" in params_5a: call_a_kwargs["temperature"] = params_5a["temperature"]
-                    if "max_tokens" in params_5a:
-                        if any(m in params_5a["model"] for m in ["gpt-5", "o1", "o3"]): call_a_kwargs["max_completion_tokens"] = params_5a["max_tokens"]
-                        else: call_a_kwargs["max_tokens"] = params_5a["max_tokens"]
-                    if "reasoning_effort" in params_5a: call_a_kwargs["reasoning_effort"] = params_5a["reasoning_effort"]
-                        
-                    resp_a = client.chat.completions.create(**call_a_kwargs)
-                    if resp_a.usage:
-                        from utils.helpers import track_usage
-                        track_usage(params_5a["model"], resp_a.usage.prompt_tokens, resp_a.usage.completion_tokens)
-                            
-                    res_a = resp_a.choices[0].message.content.strip()
+                batch_data_list = []
+                for idx, item in enumerate(batch):
+                    batch_data_list.append({
+                        "id": i + idx,
+                        "keyword": str(item["keyword"]),
+                        "position": str(item["position"]),
+                        "volume": str(item["volume"])
+                    })
                     
+                batch_data_str = json.dumps(batch_data_list, ensure_ascii=False)
+                prompt = step5_user_a.replace("{batch_data}", batch_data_str).replace("{products_context}", products_analysis_context)
+                
+                max_retries = 3
+                for attempt in range(max_retries):
                     try:
-                        from utils.helpers import clean_json
-                        json_res = json.loads(clean_json(res_a))
-                        results_array = json_res.get("results", [])
-                        
-                        # Add results ensuring id is removed so it doesn't pollute next step, and kw is intact
-                        for res in results_array:
-                            if "id" in res:
-                                del res["id"]
-                            analyzed_keywords.append(res)
+                        call_a_kwargs = {
+                            "model": params_5a["model"],
+                            "response_format": { "type": "json_object" },
+                            "messages": [
+                                {"role": "system", "content": step5_sys_a},
+                                {"role": "user", "content": prompt}
+                            ]
+                        }
+                        if "temperature" in params_5a: call_a_kwargs["temperature"] = params_5a["temperature"]
+                        if "max_tokens" in params_5a:
+                            if any(m in params_5a["model"] for m in ["gpt-5", "o1", "o3"]): call_a_kwargs["max_completion_tokens"] = params_5a["max_tokens"]
+                            else: call_a_kwargs["max_tokens"] = params_5a["max_tokens"]
+                        if "reasoning_effort" in params_5a: call_a_kwargs["reasoning_effort"] = params_5a["reasoning_effort"]
                             
-                    except Exception as je:
-                        st.warning(f"Błąd parsowania JSON dla paczki {i}-{i+batch_size}: {je}")
-                    break # Success, exit retry loop
-                    
-                except Exception as e:
-                    if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
-                        if attempt < max_retries - 1:
-                            my_bar_1.progress(min(1.0, i / len(unique_brand_data)), text=f"Analiza: {i}/{len(unique_brand_data)} fraz. (Rate Limit - czekam 10s...)")
-                            time.sleep(10)
+                        resp_a = client.chat.completions.create(**call_a_kwargs)
+                        if resp_a.usage:
+                            from utils.helpers import track_usage
+                            track_usage(params_5a["model"], resp_a.usage.prompt_tokens, resp_a.usage.completion_tokens)
+                                
+                        res_a = resp_a.choices[0].message.content.strip()
+                        
+                        try:
+                            from utils.helpers import clean_json
+                            json_res = json.loads(clean_json(res_a))
+                            results_array = json_res.get("results", [])
+                            
+                            for res in results_array:
+                                if "id" in res:
+                                    del res["id"]
+                                analyzed_keywords.append(res)
+                                
+                        except Exception as je:
+                            st.warning(f"Błąd parsowania JSON dla paczki {i}-{i+batch_size}: {je}")
+                        break # Success, exit retry loop
+                        
+                    except Exception as e:
+                        if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
+                            if attempt < max_retries - 1:
+                                my_bar_1.progress(min(1.0, i / len(unique_brand_data)), text=f"Analiza: {i}/{len(unique_brand_data)} fraz. (Rate Limit - czekam 10s...)")
+                                time.sleep(10)
+                            else:
+                                st.warning(f"Błąd Rate Limit przy paczce {i}-{i+batch_size} po 3 próbach: {e}")
                         else:
-                            st.warning(f"Błąd Rate Limit przy paczce {i}-{i+batch_size} po 3 próbach: {e}")
-                    else:
-                        st.warning(f"Błąd przy paczce {i}-{i+batch_size}: {e}")
-                        break
+                            st.warning(f"Błąd przy paczce {i}-{i+batch_size}: {e}")
+                            break
+                    
+                progress_value = min(1.0, (i + len(batch)) / len(unique_brand_data))
+                my_bar_1.progress(progress_value, text=f"Analiza: {i+len(batch)}/{len(unique_brand_data)} fraz.")
                 
-            progress_value = min(1.0, (i + len(batch)) / len(unique_brand_data))
-            my_bar_1.progress(progress_value, text=f"Analiza: {i+len(batch)}/{len(unique_brand_data)} fraz.")
-            
-            # Dynamiczny podgląd na żywo i zapis
-            if analyzed_keywords:
-                df_current = pd.DataFrame(analyzed_keywords)
-                table_placeholder.dataframe(df_current)
-                # Zapis awaryjny (Auto-save) do JSON
-                with open("temp_brand_results_backup.json", "w", encoding="utf-8") as f:
-                    json.dump(analyzed_keywords, f, ensure_ascii=False, indent=2)
-            
-        if not analyzed_keywords:
-            st.error("Nie powiodła się analiza żadnej frazy.")
-            return
-            
-        st.session_state.brand_analysis_results = analyzed_keywords
-        
-        # Usuwamy plik backupu po udanym Etapie 1
-        if os.path.exists("temp_brand_results_backup.json"):
-            os.remove("temp_brand_results_backup.json")
-            
-        st.info("Etap 1 zakończony. Rozpoczynam Etap 2: Grupowanie i klastrowanie...")
-        analyzed_keywords_to_process = analyzed_keywords
+                if analyzed_keywords:
+                    df_current = pd.DataFrame(analyzed_keywords)
+                    table_placeholder.dataframe(df_current)
+                    import os
+                    with open("temp_brand_results_backup.json", "w", encoding="utf-8") as f:
+                        json.dump(analyzed_keywords, f, ensure_ascii=False, indent=2)
+                
+            if not analyzed_keywords:
+                st.error("Nie powiodła się analiza żadnej frazy.")
+                return
+                
+            st.session_state.brand_analysis_results = analyzed_keywords
+            import os
+            if os.path.exists("temp_brand_results_backup.json"):
+                os.remove("temp_brand_results_backup.json")
+                
+            st.info("Etap 1 zakończony. Rozpoczynam Etap 2: Grupowanie i klastrowanie...")
+            analyzed_keywords_to_process = analyzed_keywords
         else:
             st.info("Znaleziono wgrane wyniki Etapu 1. Pomijam powtórną analizę fraz i przechodzę od razu do Etapu 2 (Klastrowanie).")
             analyzed_keywords_to_process = st.session_state.brand_analysis_results
