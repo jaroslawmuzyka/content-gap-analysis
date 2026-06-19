@@ -289,6 +289,11 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 
         st.info(f"Znaleziono {len(unique_brand_data)} unikalnych zapytań brandowych. Rozpoczynam Etap 1: Analiza każdej frazy...")
         
+        products_analysis_context = "Lista naszych produktów wraz z analizą:\n"
+        if "product_analysis" in st.session_state:
+            for item in st.session_state.product_analysis:
+                products_analysis_context += f"- Produkt: {item['url']}\n  Analiza eksperta: {item['analysis']}\n\n"
+                
         products_context = "Lista naszych produktów wraz z analizą i surową treścią ze strony:\n"
         if "product_analysis" in st.session_state:
             for item in st.session_state.product_analysis:
@@ -317,7 +322,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         my_bar_1 = st.progress(0, text="Analiza fraz w toku...")
         
         for i, item in enumerate(unique_brand_data):
-            prompt = step5_user_a.replace("{keyword}", str(item["keyword"])).replace("{position}", str(item["position"])).replace("{volume}", str(item["volume"])).replace("{products_context}", products_context)
+            prompt = step5_user_a.replace("{keyword}", str(item["keyword"])).replace("{position}", str(item["position"])).replace("{volume}", str(item["volume"])).replace("{products_context}", products_analysis_context)
             try:
                 call_a_kwargs = {
                     "model": params_5a["model"],
@@ -341,10 +346,11 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 res_a = resp_a.choices[0].message.content.strip()
                 
                 try:
-                    json_res = json.loads(res_a)
+                    from utils.helpers import clean_json
+                    json_res = json.loads(clean_json(res_a))
                     analyzed_keywords.append(json_res)
-                except:
-                    pass # Skip if invalid json
+                except Exception as je:
+                    st.warning(f"Błąd parsowania JSON dla frazy {item['keyword']}: {je}\nOdpowiedź modelu: {res_a[:200]}...")
             except Exception as e:
                 st.warning(f"Błąd przy frazie {item['keyword']}: {e}")
                 
