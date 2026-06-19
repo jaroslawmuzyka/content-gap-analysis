@@ -52,9 +52,9 @@ def render(openai_api_key):
                     else:
                         df_ready = pd.read_excel(ready_file)
                         
-                    processed_urls = df_ready["Competitor URL"].dropna().unique() if "Competitor URL" in df_ready.columns else []
+                    processed_urls = df_ready["URL"].dropna().unique() if "URL" in df_ready.columns else []
                     
-                    df_accepted_urls = df_accepted["Competitor URL"].dropna().unique() if "Competitor URL" in df_accepted.columns else []
+                    df_accepted_urls = df_accepted["URL"].dropna().unique() if "URL" in df_accepted.columns else []
                     remaining = len(set(df_accepted_urls) - set(processed_urls))
                     
                     st.success(f"Pomyślnie wczytano plik! Wykryto {len(processed_urls)} przetworzonych pomysłów. Pozostało do weryfikacji: {remaining}")
@@ -170,9 +170,10 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                 st.error("Brak klucza OpenAI.")
             else:
                 df_accepted_to_process = df_accepted
-                if df_ready is not None and "Competitor URL" in df_ready.columns:
-                    processed_urls = df_ready["Competitor URL"].dropna().unique()
-                    df_accepted_to_process = df_accepted[~df_accepted["Competitor URL"].isin(processed_urls)]
+                if df_ready is not None and "URL" in df_ready.columns:
+                    processed_urls = df_ready["URL"].dropna().unique()
+                    if "URL" in df_accepted.columns:
+                        df_accepted_to_process = df_accepted[~df_accepted["URL"].isin(processed_urls)]
                     
                 if len(df_accepted_to_process) == 0:
                     st.success("Wszystkie adresy zostały już przeanalizowane w załączonym pliku. Nie ma nic więcej do zrobienia!")
@@ -213,8 +214,8 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                     for idx, row in batch.iterrows():
                         batch_data_list.append({
                             "id": idx,
-                            "target_url": str(row.get("Competitor URL", "")),
-                            "target_title": str(row.get("Competitor Title", "")),
+                            "target_url": str(row.get("URL", "")),
+                            "target_title": str(row.get("Title", "")),
                             "segment": str(row.get("Segment", ""))
                         })
                         
