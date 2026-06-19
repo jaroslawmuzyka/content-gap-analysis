@@ -24,6 +24,49 @@ def render():
     if "df_gap_results" in st.session_state:
         sheets["4. Content Gap"] = st.session_state.df_gap_results
         
+    # 5. Analiza Brandu (Krok 5)
+    if "brand_clusters" in st.session_state:
+        cluster_data = []
+        for k in st.session_state.brand_clusters.get("klastry", []):
+            frazy = k.get("frazy_w_klastrze", [])
+            frazy_str = ", ".join([str(f.get("keyword", "")) for f in frazy])
+            vol_sum = sum([int(f.get("volume", 0)) for f in frazy if str(f.get("volume")).isdigit()])
+            url_title = k.get("proponowany_title", k.get("proponowany_h1", k.get("nazwa_klastra", "")))
+            cluster_data.append({
+                "Proponowany Title / H1": url_title,
+                "Nazwa Klastra": k.get("nazwa_klastra", ""),
+                "Frazy w klastrze": frazy_str,
+                "Łączny Volume": vol_sum,
+                "Rekomendowana Akcja": k.get("rekomendacja", ""),
+                "Priorytet": k.get("priorytet", ""),
+                "Typ Klastra": k.get("typ_klastra", ""),
+                "Uzasadnienie": k.get("uzasadnienie_rekomendacji", "")
+            })
+        if cluster_data:
+            sheets["5. Brand Klastry"] = pd.DataFrame(cluster_data)
+            
+    if "brand_analysis_results" in st.session_state:
+        frazy_data = []
+        for item in st.session_state.brand_analysis_results:
+            frazy_data.append({
+                "Fraza (Keyword)": item.get("keyword", ""),
+                "Volume": item.get("volume", 0),
+                "Pozycja": item.get("position", 0),
+                "Dopasowany Produkt": item.get("produkt", ""),
+                "Intencja": item.get("intencja", ""),
+                "Etap Ścieżki": item.get("etap_sciezki_uzytkownika", ""),
+                "Problem Użytkownika": item.get("problem_uzytkownika", ""),
+                "Dopasowanie": item.get("dopasowanie_do_produktu", ""),
+                "Proponowany Temat/Sekcja": item.get("proponowany_temat_lub_sekcja", ""),
+                "Rekomendowany Typ Treści": item.get("rekomendowany_typ_tresci", ""),
+                "Ryzyko Claimów": item.get("ryzyko_claimow", ""),
+                "Bezpieczny Kierunek": item.get("bezpieczny_kierunek_odpowiedzi", ""),
+                "Czego NIE sugerować": item.get("czego_nie_sugerowac", ""),
+                "Uzasadnienie": item.get("uzasadnienie", "")
+            })
+        if frazy_data:
+            sheets["5a. Brand Frazy"] = pd.DataFrame(frazy_data)
+        
     # 7. Weryfikacja (Krok 7)
     if "df_verified_results" in st.session_state:
         sheets["7. Weryfikacja Gap"] = st.session_state.df_verified_results

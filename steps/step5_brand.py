@@ -336,6 +336,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
             st.error("Nie powiodła się analiza żadnej frazy.")
             return
             
+        st.session_state.brand_analysis_results = analyzed_keywords
         st.info("Etap 1 zakończony. Rozpoczynam Etap 2: Grupowanie i klastrowanie...")
         
         # Etap 2: Grupowanie
@@ -368,36 +369,97 @@ Zwróć wyłącznie poprawny JSON w strukturze:
             st.session_state.brand_clusters = final_json
             st.success("Analiza i klastrowanie zakończone pomyślnie!")
             
-            # Display nicely
-            md = []
-            podsumowanie = final_json.get("podsumowanie", {})
-            md.append("## 🎯 Podsumowanie Analizy Brandu")
-            md.append(f"- Przeanalizowane frazy: **{podsumowanie.get('liczba_przeanalizowanych_fraz', 0)}**")
-            md.append(f"- Klastry: **{podsumowanie.get('liczba_klastrow', 0)}**")
-            md.append(f"- Rekomendowane nowe podstrony: **{podsumowanie.get('liczba_rekomendowanych_nowych_podstron', 0)}**")
-            md.append(f"- Rekomendowane rozbudowy: **{podsumowanie.get('liczba_rekomendowanych_rozbudow', 0)}**")
-            md.append(f"**Największa szansa:** {podsumowanie.get('najwieksza_szansa', '')}")
-            md.append(f"**Największe ryzyko:** {podsumowanie.get('najwieksze_ryzyko', '')}")
-            md.append("---")
-            
-            klastry = final_json.get("klastry", [])
-            for i, k in enumerate(klastry):
-                md.append(f"### {i+1}. {k.get('nazwa_klastra', 'Bez nazwy')} ({k.get('typ_klastra', '')})")
-                md.append(f"**Rekomendacja:** {k.get('rekomendacja', '')} ({k.get('priorytet', 'brak')})")
-                if k.get("proponowany_title"):
-                    md.append(f"- **Proponowany Title:** {k.get('proponowany_title')}")
-                if k.get("proponowany_h1"):
-                    md.append(f"- **Proponowany H1:** {k.get('proponowany_h1')}")
-                
-                f_list = [f"{f.get('keyword', '')} (Vol: {f.get('volume', 0)}, Poz: {f.get('position', 0)})" for f in k.get("frazy_w_klastrze", [])]
-                md.append("- **Frazy:** " + ", ".join(f_list))
-                md.append(f"- **Uzasadnienie:** {k.get('uzasadnienie_rekomendacji', '')}")
-                md.append("\n")
-                
-            st.markdown("\n".join(md))
-            
-            with st.expander("📦 Pełny profil JSON"):
-                st.json(final_json)
-                
         except Exception as e:
             st.error(f"Błąd w Etapie 2 (Grupowanie): {e}")
+
+    if "brand_clusters" in st.session_state:
+        st.markdown("---")
+        st.subheader("Wyniki Analizy Brandu")
+        
+        final_json = st.session_state.brand_clusters
+        
+        # Display nicely
+        md = []
+        podsumowanie = final_json.get("podsumowanie", {})
+        md.append("## 🎯 Podsumowanie Analizy Brandu")
+        md.append(f"- Przeanalizowane frazy: **{podsumowanie.get('liczba_przeanalizowanych_fraz', 0)}**")
+        md.append(f"- Klastry: **{podsumowanie.get('liczba_klastrow', 0)}**")
+        md.append(f"- Rekomendowane nowe podstrony: **{podsumowanie.get('liczba_rekomendowanych_nowych_podstron', 0)}**")
+        md.append(f"- Rekomendowane rozbudowy: **{podsumowanie.get('liczba_rekomendowanych_rozbudow', 0)}**")
+        md.append(f"**Największa szansa:** {podsumowanie.get('najwieksza_szansa', '')}")
+        md.append(f"**Największe ryzyko:** {podsumowanie.get('najwieksze_ryzyko', '')}")
+        md.append("---")
+        
+        klastry = final_json.get("klastry", [])
+        for i, k in enumerate(klastry):
+            md.append(f"### {i+1}. {k.get('nazwa_klastra', 'Bez nazwy')} ({k.get('typ_klastra', '')})")
+            md.append(f"**Rekomendacja:** {k.get('rekomendacja', '')} ({k.get('priorytet', 'brak')})")
+            if k.get("proponowany_title"):
+                md.append(f"- **Proponowany Title:** {k.get('proponowany_title')}")
+            if k.get("proponowany_h1"):
+                md.append(f"- **Proponowany H1:** {k.get('proponowany_h1')}")
+            
+            f_list = [f"{f.get('keyword', '')} (Vol: {f.get('volume', 0)}, Poz: {f.get('position', 0)})" for f in k.get("frazy_w_klastrze", [])]
+            md.append("- **Frazy:** " + ", ".join(f_list))
+            md.append(f"- **Uzasadnienie:** {k.get('uzasadnienie_rekomendacji', '')}")
+            md.append("\n")
+            
+        st.markdown("\n".join(md))
+        
+        with st.expander("📦 Pełny profil JSON"):
+            st.json(final_json)
+            
+        import pandas as pd
+        from utils.helpers import to_excel_multi
+        
+        sheets = {}
+        cluster_data = []
+        for k in klastry:
+            frazy = k.get("frazy_w_klastrze", [])
+            frazy_str = ", ".join([str(f.get("keyword", "")) for f in frazy])
+            vol_sum = sum([int(f.get("volume", 0)) for f in frazy if str(f.get("volume")).isdigit()])
+            url_title = k.get("proponowany_title", k.get("proponowany_h1", k.get("nazwa_klastra", "")))
+            cluster_data.append({
+                "Proponowany Title / H1": url_title,
+                "Nazwa Klastra": k.get("nazwa_klastra", ""),
+                "Frazy w klastrze": frazy_str,
+                "Łączny Volume": vol_sum,
+                "Rekomendowana Akcja": k.get("rekomendacja", ""),
+                "Priorytet": k.get("priorytet", ""),
+                "Typ Klastra": k.get("typ_klastra", ""),
+                "Uzasadnienie": k.get("uzasadnienie_rekomendacji", "")
+            })
+        if cluster_data:
+            sheets["5. Brand Klastry"] = pd.DataFrame(cluster_data)
+            
+        if "brand_analysis_results" in st.session_state:
+            frazy_data = []
+            for item in st.session_state.brand_analysis_results:
+                frazy_data.append({
+                    "Fraza (Keyword)": item.get("keyword", ""),
+                    "Volume": item.get("volume", 0),
+                    "Pozycja": item.get("position", 0),
+                    "Dopasowany Produkt": item.get("produkt", ""),
+                    "Intencja": item.get("intencja", ""),
+                    "Etap Ścieżki": item.get("etap_sciezki_uzytkownika", ""),
+                    "Problem Użytkownika": item.get("problem_uzytkownika", ""),
+                    "Dopasowanie": item.get("dopasowanie_do_produktu", ""),
+                    "Proponowany Temat/Sekcja": item.get("proponowany_temat_lub_sekcja", ""),
+                    "Rekomendowany Typ Treści": item.get("rekomendowany_typ_tresci", ""),
+                    "Ryzyko Claimów": item.get("ryzyko_claimow", ""),
+                    "Bezpieczny Kierunek": item.get("bezpieczny_kierunek_odpowiedzi", ""),
+                    "Czego NIE sugerować": item.get("czego_nie_sugerowac", ""),
+                    "Uzasadnienie": item.get("uzasadnienie", "")
+                })
+            if frazy_data:
+                sheets["5a. Brand Frazy"] = pd.DataFrame(frazy_data)
+                
+        if sheets:
+            excel_data = to_excel_multi(sheets)
+            st.download_button(
+                label="📥 Pobierz Analizę Brandu (XLSX)",
+                data=excel_data,
+                file_name='analiza_brandu.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                type="primary"
+            )
