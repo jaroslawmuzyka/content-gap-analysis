@@ -7,7 +7,7 @@ def render(openai_api_key):
     st.header("Krok 7: Weryfikacja Istniejących Treści")
     
     if "df_gap_results" not in st.session_state or "my_pages_df" not in st.session_state:
-        st.warning("Musisz najpierw ukończyć Krok 4 (aby wygenerować pomysły Gap) oraz Krok 6 (aby wgrać własne URLe i Title).")
+        st.warning("Musisz najpierw ukończyć Krok 4 (aby wygenerować pomysły Gap) oraz Krok 5 (aby wgrać własne URLe i Title).")
     else:
         df_gap = st.session_state.df_gap_results
         df_accepted = df_gap[df_gap['AI Verdict'] == "PASUJE"]

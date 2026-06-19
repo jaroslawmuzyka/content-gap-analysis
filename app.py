@@ -42,8 +42,8 @@ with st.sidebar:
     step2 = st.button("Krok 2: Analiza Produktów (Jina + AI)", use_container_width=True)
     step3 = st.button("Krok 3: Generowanie Fraz", use_container_width=True)
     step4 = st.button("Krok 4: Mapowanie Content Gap", use_container_width=True)
-    step5 = st.button("Krok 5: Analiza Brandu", use_container_width=True)
-    step6 = st.button("Krok 6: Struktura Własnej Strony", use_container_width=True)
+    step5 = st.button("Krok 5: Własne Strony", use_container_width=True)
+    step6 = st.button("Krok 6: Analiza Brandu", use_container_width=True)
     step7 = st.button("Krok 7: Weryfikacja Istniejących Treści", use_container_width=True)
     step8 = st.button("Krok 8: Audyt Contentu (AI Readiness)", use_container_width=True)
     step9 = st.button("Krok 9: Globalny Raport (Eksport)", use_container_width=True)
@@ -73,11 +73,11 @@ elif st.session_state.step == 4:
     from steps import step4_gap
     step4_gap.render(openai_api_key)
 elif st.session_state.step == 5:
-    from steps import step5_brand
-    step5_brand.render(openai_api_key)
+    from steps import step5_user_pages
+    step5_user_pages.render()
 elif st.session_state.step == 6:
-    from steps import step6_structure
-    step6_structure.render()
+    from steps import step6_brand
+    step6_brand.render(openai_api_key)
 elif st.session_state.step == 7:
     from steps import step7_verification
     step7_verification.render(openai_api_key)

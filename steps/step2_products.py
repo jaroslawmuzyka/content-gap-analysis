@@ -962,7 +962,8 @@ Napisz krótkie, decyzyjne podsumowanie:
                             "json2": d2 if 'd2' in locals() else {},
                             "json3": d3 if 'd3' in locals() else {},
                             "json4": d4 if 'd4' in locals() else {},
-                            "products_context": r5 if 'r5' in locals() else ""
+                            "products_context": r5 if 'r5' in locals() else "",
+                            "raw_content": content_clipped if 'content_clipped' in locals() else ""
                         })
                     else:
                         st.warning(f"Brak zawartości do analizy dla {url}")

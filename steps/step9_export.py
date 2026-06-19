@@ -24,7 +24,7 @@ def render():
     if "df_gap_results" in st.session_state:
         sheets["4. Content Gap"] = st.session_state.df_gap_results
         
-    # 5. Analiza Brandu (Krok 5)
+    # 6. Analiza Brandu (Krok 6)
     if "brand_clusters" in st.session_state:
         cluster_data = []
         for k in st.session_state.brand_clusters.get("klastry", []):
@@ -52,7 +52,7 @@ def render():
                 "Proponowane FAQ": faq_str
             })
         if cluster_data:
-            sheets["5. Brand Klastry"] = pd.DataFrame(cluster_data)
+            sheets["6. Brand Klastry"] = pd.DataFrame(cluster_data)
             
     if "brand_analysis_results" in st.session_state:
         frazy_data = []
@@ -74,7 +74,7 @@ def render():
                 "Uzasadnienie": item.get("uzasadnienie", "")
             })
         if frazy_data:
-            sheets["5a. Brand Frazy"] = pd.DataFrame(frazy_data)
+            sheets["6a. Brand Frazy"] = pd.DataFrame(frazy_data)
         
     # 7. Weryfikacja (Krok 7)
     if "df_verified_results" in st.session_state:

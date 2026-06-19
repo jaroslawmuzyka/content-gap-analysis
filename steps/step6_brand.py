@@ -167,7 +167,9 @@ Zasady grupowania:
 * ryzyka claimów,
 * łatwości wdrożenia.
 13. Nie twórz klastra tylko dlatego, że istnieje pojedyncza fraza. Jeśli fraza jest odosobniona, niskiej jakości lub ryzykowna, oznacz ją jako „do_monitorowania” albo „odrzucone”.
-14. Wskazuj, czy rekomendowana treść powinna być: nową podstroną, rozbudową istniejącej strony produktu, sekcją FAQ, artykułem poradnikowym, landing page’em, porównaniem, sekcją zakupową, albo nie powinna być tworzona."""
+14. Zanim zaproponujesz DODAJ_FAQ lub ROZBUDUJ_STRONE_PRODUKTU, przeszukaj "Aktualną treść na stronie" podaną dla danego produktu. Jeśli rekomendowana sekcja lub informacja już w nim jest, zwróć rekomendację NIE_TWORZ_TRESCI lub zalecaj jedynie drobną optymalizację.
+15. Zanim zaproponujesz STWORZ_ARTYKUL, sprawdź "Listę własnych stron klienta". Jeśli znajdziesz adres (np. wpis na blogu) odpowiadający intencji klastra, nie twórz nowego artykułu, tylko ustaw rekomendację na ROZBUDUJ_ISTNIEJACY_ARTYKUL i wskaż znaleziony adres w polu `docelowa_istniejaca_strona`.
+16. Wskazuj rekomendacje wybierając z: nowa podstrona, rozbudowa istniejącej strony produktu, rozbudowa istniejącego artykułu, sekcja FAQ, artykuł poradnikowy, landing page, sekcja zakupowa, lub nie twórz treści."""
         step5_sys_b = st.text_area("System Prompt (Grupowanie)", value=sys_5b_def, height=250, key="step5_sys_b")
         
         user_5b_def = """Pogrupuj przeanalizowane frazy brandowe w klastry contentowe i przygotuj rekomendacje dla klienta.
@@ -175,8 +177,8 @@ Zasady grupowania:
 Dane wejściowe:
 {brand_keyword_analysis_json}
 
-Kontekst produktów klienta:
-{products_context}
+Kontekst produktów i stron klienta:
+{full_context}
 
 Cel:
 Chcę wiedzieć, jakie działania contentowe klient powinien wykonać na podstawie brandowych fraz SEO.
@@ -218,7 +220,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
 "potencjal_sprzedazowy": "wysoki | sredni | niski",
 "ryzyko_claimow": "niskie | srednie | wysokie",
 "wymaga_weryfikacji": true,
-"rekomendacja": "ROZBUDUJ_STRONE_PRODUKTU | DODAJ_FAQ | STWORZ_ARTYKUL | STWORZ_LANDING | STWORZ_POROWNANIE | DODAJ_SEKCJE_GDZIE_KUPIC | DODAJ_SEKCJE_SKLAD | DODAJ_SEKCJE_BEZPIECZENSTWO | NIE_TWORZ_TRESCI | DO_MONITOROWANIA | WYMAGA_WERYFIKACJI_MEDYCZNEJ",
+"rekomendacja": "ROZBUDUJ_STRONE_PRODUKTU | ROZBUDUJ_ISTNIEJACY_ARTYKUL | DODAJ_FAQ | STWORZ_ARTYKUL | STWORZ_LANDING | STWORZ_POROWNANIE | DODAJ_SEKCJE_GDZIE_KUPIC | DODAJ_SEKCJE_SKLAD | DODAJ_SEKCJE_BEZPIECZENSTWO | NIE_TWORZ_TRESCI | DO_MONITOROWANIA | WYMAGA_WERYFIKACJI_MEDYCZNEJ",
 "czy_nowa_podstrona": true,
 "czy_rozbudowa_istniejacej_strony": true,
 "docelowa_istniejaca_strona": "adres URL produktu lub strony, którą należy rozbudować, albo pusty string",
@@ -287,10 +289,26 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 
         st.info(f"Znaleziono {len(unique_brand_data)} unikalnych zapytań brandowych. Rozpoczynam Etap 1: Analiza każdej frazy...")
         
-        products_context = "Lista naszych produktów wraz z analizą:\n"
+        products_context = "Lista naszych produktów wraz z analizą i surową treścią ze strony:\n"
         if "product_analysis" in st.session_state:
             for item in st.session_state.product_analysis:
-                products_context += f"- Produkt: {item['url']}\n  Analiza: {item['analysis']}\n\n"
+                products_context += f"- Produkt: {item['url']}\n  Analiza eksperta: {item['analysis']}\n  Aktualna treść na stronie (Surowy Markdown): {item.get('raw_content', 'Brak pobranego tekstu')}\n\n"
+        
+        user_pages_context = "Lista naszych własnych stron (Blog/Baza wiedzy/inne):\n"
+        if "my_pages_df" in st.session_state:
+            df_my_pages = st.session_state.my_pages_df
+            u_col = next((c for c in df_my_pages.columns if 'url' in str(c).lower()), df_my_pages.columns[0])
+            t_col = next((c for c in df_my_pages.columns if 'title' in str(c).lower() or 'tytuł' in str(c).lower()), df_my_pages.columns[1] if len(df_my_pages.columns)>1 else None)
+            
+            for idx, row in df_my_pages.iterrows():
+                u = str(row[u_col]).strip() if pd.notna(row[u_col]) else ""
+                t = str(row[t_col]).strip() if t_col and pd.notna(row[t_col]) else ""
+                if u:
+                    user_pages_context += f"- URL: {u} | Tytuł: {t}\n"
+        else:
+            user_pages_context += "Brak wgranych własnych stron (Pominięto Krok 5).\n"
+            
+        full_context = f"--- PRODUKTY KLIENTA ---\n{products_context}\n\n--- WŁASNE STRONY KLIENTA ---\n{user_pages_context}"
         
         client = openai.OpenAI(api_key=openai_api_key)
         
@@ -340,8 +358,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         st.info("Etap 1 zakończony. Rozpoczynam Etap 2: Grupowanie i klastrowanie...")
         
         # Etap 2: Grupowanie
-        brand_keyword_analysis_json = json.dumps(analyzed_keywords, ensure_ascii=False)
-        prompt_b = step5_user_b.replace("{brand_keyword_analysis_json}", brand_keyword_analysis_json).replace("{products_context}", products_context)
+        prompt_5b = step5_user_b.replace("{brand_keyword_analysis_json}", json.dumps(analyzed_keywords, ensure_ascii=False)).replace("{full_context}", full_context)
         
         try:
             call_b_kwargs = {
@@ -349,7 +366,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 "response_format": { "type": "json_object" },
                 "messages": [
                     {"role": "system", "content": step5_sys_b},
-                    {"role": "user", "content": prompt_b}
+                    {"role": "user", "content": prompt_5b}
                 ]
             }
             if "temperature" in params_5b: call_b_kwargs["temperature"] = params_5b["temperature"]
@@ -439,7 +456,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 "Proponowane FAQ": faq_str
             })
         if cluster_data:
-            sheets["5. Brand Klastry"] = pd.DataFrame(cluster_data)
+            sheets["6. Brand Klastry"] = pd.DataFrame(cluster_data)
             
         if "brand_analysis_results" in st.session_state:
             frazy_data = []
@@ -461,7 +478,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                     "Uzasadnienie": item.get("uzasadnienie", "")
                 })
             if frazy_data:
-                sheets["5a. Brand Frazy"] = pd.DataFrame(frazy_data)
+                sheets["6a. Brand Frazy"] = pd.DataFrame(frazy_data)
                 
         if sheets:
             excel_data = to_excel_multi(sheets)
