@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import openai
+import os
 from utils.helpers import to_excel
 
 def render(openai_api_key):
@@ -15,6 +16,50 @@ def render(openai_api_key):
         
         st.info(f"Do weryfikacji mamy {len(df_accepted)} zaakceptowanych pomysłów na wpisy oraz {len(df_my)} własnych podstron.")
         
+        # 1. Sprawdzanie czy istnieje plik awaryjny
+        if os.path.exists("temp_verification_results_backup.csv"):
+            st.warning("⚠️ Wykryto niezakończoną weryfikację z poprzedniej sesji!")
+            try:
+                df_backup = pd.read_csv("temp_verification_results_backup.csv")
+                csv_backup = df_backup.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label=f"📥 Pobierz uratowane wyniki weryfikacji ({len(df_backup)} rekordów)",
+                    data=csv_backup,
+                    file_name="uratowane_wyniki_krok7.csv",
+                    mime="text/csv",
+                    type="primary"
+                )
+            except Exception as e:
+                st.error(f"Nie udało się wczytać pliku backupu: {e}")
+                
+        st.markdown("---")
+        
+        # 2. Wybór trybu pracy
+        mode = st.radio(
+            "Wybierz tryb pracy w Kroku 7:",
+            ["Weryfikacja AI nowej listy", "Wgraj gotowy plik z wynikami (ominięcie AI)"]
+        )
+        
+        if mode == "Wgraj gotowy plik z wynikami (ominięcie AI)":
+            st.info("Wgraj plik (Excel lub CSV), który zawiera połączone/wcześniej zweryfikowane pomysły. Narzędzie przeskoczy proces AI.")
+            ready_file = st.file_uploader("Wgraj gotowy plik Weryfikacji", type=['csv', 'xlsx', 'xls'], key="ready_file_verification")
+            if ready_file:
+                try:
+                    if ready_file.name.endswith('.csv'):
+                        df_ready = pd.read_csv(ready_file)
+                    else:
+                        df_ready = pd.read_excel(ready_file)
+                        
+                    st.success(f"Pomyślnie wczytano plik z {len(df_ready)} wierszami!")
+                    st.dataframe(df_ready.head())
+                    
+                    if st.button("Zapisz te wyniki i przejdź dalej", type="primary"):
+                        st.session_state.df_verified_results = df_ready
+                        st.success("Zapisano! Możesz przejść do kroku z raportami.")
+                except Exception as e:
+                    st.error(f"Błąd podczas wczytywania gotowego pliku: {e}")
+            return # Przerywamy dalsze rysowanie strony dla tego trybu
+            
         with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
             models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
             
@@ -44,7 +89,7 @@ Nie oceniasz wyłącznie podobieństwa słów w tytule lub URL-u. Oceniasz przed
 * to, czy istniejącą treść lepiej rozbudować zamiast tworzyć nowy wpis.
 
 Zasady oceny:
-1. Zwróć wyłącznie poprawny obiekt JSON.
+1. Zwróć wyłącznie poprawny obiekt JSON, zawierający klucz "results" będący tablicą wyników dla każdego przekazanego pomysłu.
 2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
 3. Nie zakładaj, że istniejąca strona opisuje temat, jeśli nie wynika to z jej URL-a, title, H1 lub opisu w dostarczonym kontekście.
 4. Jeżeli masz tylko listę URL-i bez title/H1/opisów, oceniaj konserwatywnie.
@@ -61,18 +106,16 @@ Zasady oceny:
 15. Rekomenduj nowy wpis tylko wtedy, gdy temat ma odrębną intencję, odrębny problem lub wyraźnie inny zakres niż istniejące strony."""
             step7_sys = st.text_area("System Prompt", value=sys_7_def, height=250, key="step7_sys")
             
-            user_7_def = """Zadanie: mapowanie nowego pomysłu contentowego do istniejących treści na stronie.
+            user_7_def = """Zadanie: mapowanie paczki nowych pomysłów contentowych do istniejących treści na stronie klienta.
 
-Pomysł na nowy wpis:
-URL konkurencji: {target_url}
-Tytuł konkurencji: {target_title}
-Segment / temat: {segment}
+Paczka pomysłów na nowe wpisy (lista obiektów):
+{batch_data}
 
 Lista istniejących adresów URL na stronie klienta:
 {my_pages_context}
 
 Cel:
-Sprawdź, czy wątek opisany w pomyśle na nowy wpis jest już realizowany przez któryś z istniejących adresów URL na stronie klienta.
+Dla KAŻDEGO pomysłu z paczki sprawdź, czy wątek w nim opisany jest już realizowany przez któryś z istniejących adresów URL.
 
 Nie chodzi o zwykłe podobieństwo słów. Oceń, czy istniejąca strona odpowiada na tę samą intencję użytkownika i ten sam problem.
 
@@ -90,20 +133,25 @@ Definicje statusów:
 "CZESCIOWO_OPISANE": Istniejący URL dotyczy podobnego problemu lub segmentu, ale nie pokrywa w pełni kąta zaproponowanego w nowym wpisie. Zwykle należy rozbudować istniejącą stronę, dodać sekcję, FAQ albo akapit.
 "NIEOPISANE": Brak istniejącego URL-a, który odpowiada na tę samą intencję i problem. Można rozważyć stworzenie nowego wpisu.
 
-Zwróć wyłącznie poprawny JSON w strukturze:
+Zwróć wyłącznie poprawny JSON o następującej strukturze:
 {
-"status": "OPISANE | CZESCIOWO_OPISANE | NIEOPISANE",
-"decyzja": "NIE_TWORZ_NOWEGO_WPISU | ROZBUDUJ_ISTNIEJACY_URL | STWORZ_NOWY_WPIS | WYMAGA_RECZNEJ_WERYFIKACJI",
-"istniejacy_url": "najlepiej dopasowany istniejący URL albo pusty string",
-"dopasowanie": "pelne | czesciowe | luzne | brak | niejasne",
-"intencja_pomyslu": "informacyjna | poradnikowa | problemowa | produktowa | porownawcza | sezonowa | niejasna",
-"segment": "{segment}",
-"temat_pomyslu": "krótki opis głównego tematu pomysłu",
-"czy_grozi_kanibalizacja": true,
-"ryzyko_kanibalizacji": "wysokie | srednie | niskie | brak",
-"brakujacy_kat_lub_zakres": "co trzeba dodać, jeśli temat jest opisany tylko częściowo; pusty string, jeśli nie dotyczy",
-"rekomendowana_akcja": "krótka rekomendacja, np. dodać sekcję FAQ, rozbudować artykuł, stworzyć osobny wpis, nie tworzyć nowej treści",
-"uzasadnienie": "jedno krótkie zdanie wyjaśniające ocenę"
+  "results": [
+    {
+      "id": "identyfikator podany w batch_data",
+      "status": "OPISANE | CZESCIOWO_OPISANE | NIEOPISANE",
+      "decyzja": "NIE_TWORZ_NOWEGO_WPISU | ROZBUDUJ_ISTNIEJACY_URL | STWORZ_NOWY_WPIS | WYMAGA_RECZNEJ_WERYFIKACJI",
+      "istniejacy_url": "najlepiej dopasowany istniejący URL albo pusty string",
+      "dopasowanie": "pelne | czesciowe | luzne | brak | niejasne",
+      "intencja_pomyslu": "informacyjna | poradnikowa | problemowa | produktowa | porownawcza | sezonowa | niejasna",
+      "segment": "przepisany z batch_data segment pomysłu",
+      "temat_pomyslu": "krótki opis głównego tematu pomysłu",
+      "czy_grozi_kanibalizacja": true,
+      "ryzyko_kanibalizacji": "wysokie | srednie | niskie | brak",
+      "brakujacy_kat_lub_zakres": "co trzeba dodać, jeśli temat jest opisany tylko częściowo; pusty string, jeśli nie dotyczy",
+      "rekomendowana_akcja": "krótka rekomendacja",
+      "uzasadnienie": "jedno krótkie zdanie wyjaśniające ocenę"
+    }
+  ]
 }"""
             step7_user = st.text_area("User Prompt", value=user_7_def, height=350, key="step7_user")
                 
@@ -127,77 +175,115 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                     st.warning("Ostrzeżenie: Twoja lista własnych stron jest bardzo długa. Obcinam do pierwszych 400k znaków (ok. 4000 URLi), aby nie przekroczyć maksymalnego limitu 128 tys. tokenów dla modelu.")
                     my_pages_context = my_pages_context[:400000]
                 
-                progress_text = "Weryfikacja istnienia treści..."
+                progress_text = "Weryfikacja istnienia treści (Batching)..."
                 my_bar = st.progress(0, text=progress_text)
+                st.markdown("### Podgląd wyników weryfikacji na żywo:")
+                table_placeholder = st.empty()
                 
                 results_verified = []
                 client = openai.OpenAI(api_key=openai_api_key)
                 
-                for idx, row in df_accepted.iterrows():
-                    target_url = str(row.get("Competitor URL", ""))
-                    target_title = str(row.get("Competitor Title", ""))
-                    segment = str(row.get("Segment", ""))
+                import time
+                import json
+                batch_size = 10
+                
+                # Konwertujemy df_accepted do listy w celu łatwiejszego iterowania
+                for i in range(0, len(df_accepted), batch_size):
+                    batch = df_accepted.iloc[i:i+batch_size]
                     
-                    prompt = step7_user.replace("{target_url}", target_url).replace("{target_title}", target_title).replace("{segment}", segment).replace("{my_pages_context}", my_pages_context)
+                    batch_data_list = []
+                    for idx, row in batch.iterrows():
+                        batch_data_list.append({
+                            "id": idx,
+                            "target_url": str(row.get("Competitor URL", "")),
+                            "target_title": str(row.get("Competitor Title", "")),
+                            "segment": str(row.get("Segment", ""))
+                        })
+                        
+                    batch_data_str = json.dumps(batch_data_list, ensure_ascii=False)
+                    prompt = step7_user.replace("{batch_data}", batch_data_str).replace("{my_pages_context}", my_pages_context)
                     
-                    try:
-                        call_kwargs = {
-                            "model": params_7["model"],
-                            "response_format": { "type": "json_object" },
-                            "messages": [
-                                {"role": "system", "content": step7_sys},
-                                {"role": "user", "content": prompt}
-                            ]
-                        }
-                        if "temperature" in params_7: call_kwargs["temperature"] = params_7["temperature"]
-                        if "max_tokens" in params_7:
+                    max_retries = 3
+                    for attempt in range(max_retries):
+                        try:
+                            call_kwargs = {
+                                "model": params_7["model"],
+                                "response_format": { "type": "json_object" },
+                                "messages": [
+                                    {"role": "system", "content": step7_sys},
+                                    {"role": "user", "content": prompt}
+                                ]
+                            }
+                            if "temperature" in params_7: call_kwargs["temperature"] = params_7["temperature"]
+                            if "max_tokens" in params_7:
                                 if any(m in params_7["model"] for m in ["gpt-5", "o1", "o3"]): call_kwargs["max_completion_tokens"] = params_7["max_tokens"]
                                 else: call_kwargs["max_tokens"] = params_7["max_tokens"]
-                        if "reasoning_effort" in params_7: call_kwargs["reasoning_effort"] = params_7["reasoning_effort"]
+                            if "reasoning_effort" in params_7: call_kwargs["reasoning_effort"] = params_7["reasoning_effort"]
+                                
+                            ai_response = client.chat.completions.create(**call_kwargs)
+                            if ai_response.usage:
+                                from utils.helpers import track_usage
+                                track_usage(params_7["model"], ai_response.usage.prompt_tokens, ai_response.usage.completion_tokens)
+                                
+                            ans = ai_response.choices[0].message.content.strip()
                             
-                        ai_response = client.chat.completions.create(**call_kwargs)
-                        if ai_response.usage:
-                            from utils.helpers import track_usage
-                            track_usage(params_7["model"], ai_response.usage.prompt_tokens, ai_response.usage.completion_tokens)
-                            
-                        ans = ai_response.choices[0].message.content.strip()
-                        import json
-                        from utils.helpers import clean_json
-                        try:
+                            from utils.helpers import clean_json
                             data = json.loads(clean_json(ans))
-                            row_dict = row.to_dict()
-                            row_dict["Status na własnej stronie"] = data.get("status", "Błąd")
-                            row_dict["Istniejący URL"] = data.get("istniejacy_url", "")
-                            row_dict["Decyzja Contentowa"] = data.get("decyzja", "")
-                            row_dict["Dopasowanie"] = data.get("dopasowanie", "")
-                            row_dict["Intencja Pomysłu"] = data.get("intencja_pomyslu", "")
-                            row_dict["Temat Pomysłu"] = data.get("temat_pomyslu", "")
-                            row_dict["Ryzyko Kanibalizacji"] = data.get("ryzyko_kanibalizacji", "")
-                            row_dict["Brakujący Kąt/Zakres"] = data.get("brakujacy_kat_lub_zakres", "")
-                            row_dict["Rekomendowana Akcja"] = data.get("rekomendowana_akcja", "")
-                            row_dict["Weryfikacja Uzasadnienie"] = data.get("uzasadnienie", "")
-                            results_verified.append(row_dict)
-                        except:
-                            row_dict = row.to_dict()
-                            row_dict["Status na własnej stronie"] = "Błąd JSON"
-                            row_dict["Istniejący URL"] = ""
-                            row_dict["Weryfikacja Uzasadnienie"] = ans
-                            results_verified.append(row_dict)
-                    except Exception as e:
-                        row_dict = row.to_dict()
-                        row_dict["Status na własnej stronie"] = f"Błąd API: {e}"
-                        row_dict["Istniejący URL"] = ""
-                        row_dict["Weryfikacja Uzasadnienie"] = ""
-                        results_verified.append(row_dict)
+                            results_array = data.get("results", [])
+                            res_dict = {str(item.get("id")): item for item in results_array if "id" in item}
+                            
+                            for idx, row in batch.iterrows():
+                                row_dict = row.to_dict()
+                                item = res_dict.get(str(idx), {})
+                                if item:
+                                    row_dict["Status na własnej stronie"] = item.get("status", "Błąd")
+                                    row_dict["Istniejący URL"] = item.get("istniejacy_url", "")
+                                    row_dict["Decyzja Contentowa"] = item.get("decyzja", "")
+                                    row_dict["Dopasowanie"] = item.get("dopasowanie", "")
+                                    row_dict["Intencja Pomysłu"] = item.get("intencja_pomyslu", "")
+                                    row_dict["Temat Pomysłu"] = item.get("temat_pomyslu", "")
+                                    row_dict["Ryzyko Kanibalizacji"] = item.get("ryzyko_kanibalizacji", "")
+                                    row_dict["Brakujący Kąt/Zakres"] = item.get("brakujacy_kat_lub_zakres", "")
+                                    row_dict["Rekomendowana Akcja"] = item.get("rekomendowana_akcja", "")
+                                    row_dict["Weryfikacja Uzasadnienie"] = item.get("uzasadnienie", "")
+                                else:
+                                    row_dict["Status na własnej stronie"] = "BŁĄD MODELU"
+                                    row_dict["Weryfikacja Uzasadnienie"] = "Brak ID w odpowiedzi"
+                                results_verified.append(row_dict)
+                            break # wyjście z pętli retry przy sukcesie
+                            
+                        except Exception as e:
+                            if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
+                                if attempt < max_retries - 1:
+                                    my_bar.progress(min(1.0, i / len(df_accepted)), text=f"Weryfikacja: {i}/{len(df_accepted)} wierszy. (Rate Limit - czekam 10s...)")
+                                    time.sleep(10)
+                                else:
+                                    st.warning(f"Błąd Rate Limit przy paczce po 3 próbach: {e}")
+                            else:
+                                for idx, row in batch.iterrows():
+                                    row_dict = row.to_dict()
+                                    row_dict["Status na własnej stronie"] = f"Błąd JSON lub API: {e}"
+                                    row_dict["Weryfikacja Uzasadnienie"] = ""
+                                    results_verified.append(row_dict)
+                                break
+                            
+                    # Dynamiczny podgląd na żywo i zapis
+                    if results_verified:
+                        df_current = pd.DataFrame(results_verified)
+                        table_placeholder.dataframe(df_current)
+                        # Zapis awaryjny (Auto-save) do CSV
+                        df_current.to_csv("temp_verification_results_backup.csv", index=False)
                         
-                    progress_value = min(1.0, (idx + 1) / len(df_accepted))
-                    my_bar.progress(progress_value, text=f"Weryfikacja {idx+1}/{len(df_accepted)}...")
+                    progress_value = min(1.0, (i + len(batch)) / len(df_accepted))
+                    my_bar.progress(progress_value, text=f"Weryfikacja {i+len(batch)}/{len(df_accepted)}...")
                 
                 df_verified = pd.DataFrame(results_verified)
                 st.session_state.df_verified_results = df_verified
                 st.success("Weryfikacja zakończona!")
                 
-                st.dataframe(df_verified)
+                # Usuwamy plik backupu po udanej analizie
+                if os.path.exists("temp_verification_results_backup.csv"):
+                    os.remove("temp_verification_results_backup.csv")
                 
                 st.download_button(
                     label="📥 Pobierz zweryfikowane pomysły (XLSX)",

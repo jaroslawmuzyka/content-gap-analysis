@@ -1,11 +1,57 @@
 import streamlit as st
 import pandas as pd
 import openai
+import os
 from utils.helpers import to_excel
 
 def render(openai_api_key):
     st.header("Krok 4: Mapowanie Content Gap (Non-Brand)")
     
+    # 1. Sprawdzanie czy istnieje plik awaryjny
+    if os.path.exists("temp_gap_results_backup.csv"):
+        st.warning("⚠️ Wykryto niezakończoną analizę z poprzedniej sesji! (System zapisał część wyników przed awarią lub przerwaniem).")
+        try:
+            df_backup = pd.read_csv("temp_gap_results_backup.csv")
+            csv_backup = df_backup.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label=f"📥 Pobierz uratowane wyniki ({len(df_backup)} rekordów)",
+                data=csv_backup,
+                file_name="uratowane_wyniki_krok4.csv",
+                mime="text/csv",
+                type="primary"
+            )
+        except Exception as e:
+            st.error(f"Nie udało się wczytać pliku backupu: {e}")
+            
+    st.markdown("---")
+    
+    # 2. Wybór trybu pracy
+    mode = st.radio(
+        "Wybierz tryb pracy w Kroku 4:",
+        ["Analiza AI nowej listy", "Wgraj gotowy plik z wynikami (ominięcie AI)"]
+    )
+    
+    if mode == "Wgraj gotowy plik z wynikami (ominięcie AI)":
+        st.info("Wgraj plik (Excel lub CSV), który zawiera połączone/wcześniej przeanalizowane wyniki. Wymagane są m.in. kolumny 'URL' oraz 'AI Verdict' (lub chociaż 'URL', z którym chcesz przejść do kolejnych kroków).")
+        ready_file = st.file_uploader("Wgraj gotowy plik", type=['csv', 'xlsx', 'xls'], key="ready_file")
+        if ready_file:
+            try:
+                if ready_file.name.endswith('.csv'):
+                    df_ready = pd.read_csv(ready_file)
+                else:
+                    df_ready = pd.read_excel(ready_file)
+                    
+                st.success(f"Pomyślnie wczytano plik z {len(df_ready)} wierszami!")
+                st.dataframe(df_ready.head())
+                
+                if st.button("Zapisz te wyniki i przejdź dalej", type="primary"):
+                    st.session_state.df_gap_results = df_ready
+                    st.success("Zapisano! Możesz przejść do kolejnych kroków.")
+            except Exception as e:
+                st.error(f"Błąd podczas wczytywania gotowego pliku: {e}")
+        return # Przerywamy dalsze rysowanie strony dla tego trybu
+
+    # Tryb normalny
     st.markdown("Wgraj plik wyeksportowany z Ahrefs: **Traffic share -> By page** (czyli adresy url i tytuły innych domen na bazie zbadanych wcześniej fraz).")
     
     gap_file = st.file_uploader("Wgraj plik z Ahrefs (CSV UTF-16LE, standardowe CSV lub XLSX)", type=['csv', 'xlsx', 'xls'])
@@ -142,6 +188,8 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                         
                     progress_text = "Analiza stron konkurencji..."
                     my_bar = st.progress(0, text=progress_text)
+                    st.markdown("### Podgląd wyników na żywo:")
+                    table_placeholder = st.empty()
                     
                     results = []
                     client = openai.OpenAI(api_key=openai_api_key)
@@ -237,6 +285,13 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                                         results.append(row_result)
                                     break
                                 
+                        # Dynamiczny podgląd na żywo
+                        if results:
+                            df_current = pd.DataFrame(results)
+                            table_placeholder.dataframe(df_current)
+                            # Zapis awaryjny (Auto-save)
+                            df_current.to_csv("temp_gap_results_backup.csv", index=False)
+                            
                         progress_value = min(1.0, (i + len(batch)) / len(df_gap))
                         my_bar.progress(progress_value, text=f"Przeanalizowano {i+len(batch)}/{len(df_gap)} wierszy.")
                     
@@ -244,6 +299,10 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                         df_results = pd.DataFrame(results)
                         st.session_state.df_gap_results = df_results
                         st.success("Analiza zakończona!")
+                        
+                        # Usuwamy plik backupu po udanej analizie
+                        if os.path.exists("temp_gap_results_backup.csv"):
+                            os.remove("temp_gap_results_backup.csv")
                         
                         df_accepted = df_results[df_results['AI Verdict'] == "PASUJE"]
                         df_rejected = df_results[df_results['AI Verdict'] != "PASUJE"]

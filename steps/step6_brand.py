@@ -2,10 +2,50 @@ import streamlit as st
 import pandas as pd
 import openai
 import json
+import os
 
 def render(openai_api_key):
     st.header("Krok 5: Analiza Brandu (2 Etapy)")
     
+    # 1. Sprawdzanie czy istnieje plik awaryjny JSON
+    if os.path.exists("temp_brand_results_backup.json"):
+        st.warning("⚠️ Wykryto niezakończoną analizę Etapu 1 z poprzedniej sesji!")
+        try:
+            with open("temp_brand_results_backup.json", "r", encoding="utf-8") as f:
+                json_backup = f.read()
+                data_len = len(json.loads(json_backup))
+            st.download_button(
+                label=f"📥 Pobierz uratowane wyniki JSON ({data_len} rekordów)",
+                data=json_backup,
+                file_name="uratowane_wyniki_krok6_etap1.json",
+                mime="application/json",
+                type="primary"
+            )
+        except Exception as e:
+            st.error(f"Nie udało się wczytać pliku backupu: {e}")
+            
+    st.markdown("---")
+    
+    # 2. Wybór trybu pracy
+    mode = st.radio(
+        "Wybierz tryb pracy w Kroku 6:",
+        ["Analiza AI nowej listy", "Wgraj gotowy plik JSON z wynikami (ominięcie Etapu 1)"]
+    )
+    
+    if mode == "Wgraj gotowy plik JSON z wynikami (ominięcie Etapu 1)":
+        st.info("Wgraj plik JSON zawierający przetworzone wyniki Etapu 1 (z tablicą obiektów). System natychmiast załaduje te dane i pozwoli przejść od razu do szybkiego Etapu 2 (Klastrowanie).")
+        ready_file = st.file_uploader("Wgraj gotowy plik JSON", type=['json'], key="ready_file_brand")
+        if ready_file:
+            try:
+                data = json.load(ready_file)
+                st.success(f"Pomyślnie wczytano plik z {len(data)} przeanalizowanymi frazami!")
+                if st.button("Zapisz te wyniki i przejdź do Etapu 2", type="primary"):
+                    st.session_state.brand_analysis_results = data
+                    st.success("Zapisano! Przejdź niżej i kliknij 'Rozpocznij Analizę Brandu', aby wykonać tylko Etap 2.")
+            except Exception as e:
+                st.error(f"Błąd podczas wczytywania gotowego pliku: {e}")
+        
+    st.markdown("---")
     st.markdown("Wgraj pliki zawierające zapytania brandowe (np. z Ahrefs i Senuto).")
     
     col1, col2 = st.columns(2)
@@ -304,11 +344,14 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         
         client = openai.OpenAI(api_key=openai_api_key)
         
-        # Etap 1: Analiza pojedynczych fraz
-        analyzed_keywords = []
-        my_bar_1 = st.progress(0, text="Analiza fraz w toku...")
-        
-        import time
+        # Etap 1: Analiza pojedynczych fraz (tylko jeśli brak ich w sesji)
+        if "brand_analysis_results" not in st.session_state:
+            analyzed_keywords = []
+            my_bar_1 = st.progress(0, text="Analiza fraz w toku...")
+            st.markdown("### Podgląd wyników na żywo (Etap 1):")
+            table_placeholder = st.empty()
+            
+            import time
         batch_size = 15
         
         for i in range(0, len(unique_brand_data), batch_size):
@@ -379,44 +422,61 @@ Zwróć wyłącznie poprawny JSON w strukturze:
             progress_value = min(1.0, (i + len(batch)) / len(unique_brand_data))
             my_bar_1.progress(progress_value, text=f"Analiza: {i+len(batch)}/{len(unique_brand_data)} fraz.")
             
+            # Dynamiczny podgląd na żywo i zapis
+            if analyzed_keywords:
+                df_current = pd.DataFrame(analyzed_keywords)
+                table_placeholder.dataframe(df_current)
+                # Zapis awaryjny (Auto-save) do JSON
+                with open("temp_brand_results_backup.json", "w", encoding="utf-8") as f:
+                    json.dump(analyzed_keywords, f, ensure_ascii=False, indent=2)
+            
         if not analyzed_keywords:
             st.error("Nie powiodła się analiza żadnej frazy.")
             return
             
         st.session_state.brand_analysis_results = analyzed_keywords
+        
+        # Usuwamy plik backupu po udanym Etapie 1
+        if os.path.exists("temp_brand_results_backup.json"):
+            os.remove("temp_brand_results_backup.json")
+            
         st.info("Etap 1 zakończony. Rozpoczynam Etap 2: Grupowanie i klastrowanie...")
+        analyzed_keywords_to_process = analyzed_keywords
+    else:
+        st.info("Znaleziono wgrane wyniki Etapu 1. Pomijam powtórną analizę fraz i przechodzę od razu do Etapu 2 (Klastrowanie).")
+        analyzed_keywords_to_process = st.session_state.brand_analysis_results
         
-        # Etap 2: Grupowanie
-        prompt_5b = step5_user_b.replace("{brand_keyword_analysis_json}", json.dumps(analyzed_keywords, ensure_ascii=False)).replace("{full_context}", full_context)
+    # Etap 2: Grupowanie
+    prompt_5b = step5_user_b.replace("{brand_keyword_analysis_json}", json.dumps(analyzed_keywords_to_process, ensure_ascii=False)).replace("{full_context}", full_context)
         
-        try:
-            call_b_kwargs = {
-                "model": params_5b["model"],
-                "response_format": { "type": "json_object" },
-                "messages": [
-                    {"role": "system", "content": step5_sys_b},
-                    {"role": "user", "content": prompt_5b}
-                ]
-            }
-            if "temperature" in params_5b: call_b_kwargs["temperature"] = params_5b["temperature"]
-            if "max_tokens" in params_5b:
-                                if any(m in params_5b["model"] for m in ["gpt-5", "o1", "o3"]): call_b_kwargs["max_completion_tokens"] = params_5b["max_tokens"]
-                                else: call_b_kwargs["max_tokens"] = params_5b["max_tokens"]
-            if "reasoning_effort" in params_5b: call_b_kwargs["reasoning_effort"] = params_5b["reasoning_effort"]
-                
-            resp_b = client.chat.completions.create(**call_b_kwargs)
-            if resp_b.usage:
-                from utils.helpers import track_usage
-                track_usage(params_5b["model"], resp_b.usage.prompt_tokens, resp_b.usage.completion_tokens)
-                
-            from utils.helpers import clean_json
-            final_json = json.loads(clean_json(resp_b.choices[0].message.content))
+    try:
+        call_b_kwargs = {
+            "model": params_5b["model"],
+            "response_format": { "type": "json_object" },
+            "messages": [
+                {"role": "system", "content": step5_sys_b},
+                {"role": "user", "content": prompt_5b}
+            ]
+        }
+        if "temperature" in params_5b: call_b_kwargs["temperature"] = params_5b["temperature"]
+        if "max_tokens" in params_5b:
+            if any(m in params_5b["model"] for m in ["gpt-5", "o1", "o3"]): call_b_kwargs["max_completion_tokens"] = params_5b["max_tokens"]
+            else: call_b_kwargs["max_tokens"] = params_5b["max_tokens"]
+        if "reasoning_effort" in params_5b: call_b_kwargs["reasoning_effort"] = params_5b["reasoning_effort"]
             
-            st.session_state.brand_clusters = final_json
-            st.success("Analiza i klastrowanie zakończone pomyślnie!")
+        resp_b = client.chat.completions.create(**call_b_kwargs)
+        if resp_b.usage:
+            from utils.helpers import track_usage
+            track_usage(params_5b["model"], resp_b.usage.prompt_tokens, resp_b.usage.completion_tokens)
             
-        except Exception as e:
-            st.error(f"Błąd w Etapie 2 (Grupowanie): {e}")
+        from utils.helpers import clean_json
+        final_json = json.loads(clean_json(resp_b.choices[0].message.content))
+        
+        st.session_state.brand_clusters = final_json
+        st.success("Analiza i klastrowanie zakończone pomyślnie!")
+        
+    except Exception as e:
+        st.error(f"Błąd w Etapie 2 (Grupowanie): {e}")
 
     if "brand_clusters" in st.session_state:
         st.markdown("---")
