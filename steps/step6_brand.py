@@ -425,7 +425,6 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 if analyzed_keywords:
                     df_current = pd.DataFrame(analyzed_keywords)
                     table_placeholder.dataframe(df_current)
-                    import os
                     with open("temp_brand_results_backup.json", "w", encoding="utf-8") as f:
                         json.dump(analyzed_keywords, f, ensure_ascii=False, indent=2)
                 
@@ -434,7 +433,6 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 return
                 
             st.session_state.brand_analysis_results = analyzed_keywords
-            import os
             if os.path.exists("temp_brand_results_backup.json"):
                 os.remove("temp_brand_results_backup.json")
                 
