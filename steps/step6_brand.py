@@ -426,7 +426,6 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         with st.expander("📦 Pełny profil JSON"):
             st.json(final_json)
             
-        import pandas as pd
         from utils.helpers import to_excel_multi
         
         sheets = {}
