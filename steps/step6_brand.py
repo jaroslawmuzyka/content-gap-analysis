@@ -302,7 +302,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         user_pages_context = "Lista naszych własnych stron (Blog/Baza wiedzy/inne):\n"
         if "my_pages_df" in st.session_state:
             df_my_pages = st.session_state.my_pages_df
-            u_col = next((c for c in df_my_pages.columns if 'url' in str(c).lower()), df_my_pages.columns[0])
+            u_col = next((c for c in df_my_pages.columns if 'url' in str(c).lower() or 'address' in str(c).lower()), df_my_pages.columns[0])
             t_col = next((c for c in df_my_pages.columns if 'title' in str(c).lower() or 'tytuł' in str(c).lower()), df_my_pages.columns[1] if len(df_my_pages.columns)>1 else None)
             
             for idx, row in df_my_pages.iterrows():
@@ -321,38 +321,52 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         analyzed_keywords = []
         my_bar_1 = st.progress(0, text="Analiza fraz w toku...")
         
+        import time
         for i, item in enumerate(unique_brand_data):
             prompt = step5_user_a.replace("{keyword}", str(item["keyword"])).replace("{position}", str(item["position"])).replace("{volume}", str(item["volume"])).replace("{products_context}", products_analysis_context)
-            try:
-                call_a_kwargs = {
-                    "model": params_5a["model"],
-                    "response_format": { "type": "json_object" },
-                    "messages": [
-                        {"role": "system", "content": step5_sys_a},
-                        {"role": "user", "content": prompt}
-                    ]
-                }
-                if "temperature" in params_5a: call_a_kwargs["temperature"] = params_5a["temperature"]
-                if "max_tokens" in params_5a:
-                    if any(m in params_5a["model"] for m in ["gpt-5", "o1", "o3"]): call_a_kwargs["max_completion_tokens"] = params_5a["max_tokens"]
-                    else: call_a_kwargs["max_tokens"] = params_5a["max_tokens"]
-                if "reasoning_effort" in params_5a: call_a_kwargs["reasoning_effort"] = params_5a["reasoning_effort"]
-                    
-                resp_a = client.chat.completions.create(**call_a_kwargs)
-                if resp_a.usage:
-                    from utils.helpers import track_usage
-                    track_usage(params_5a["model"], resp_a.usage.prompt_tokens, resp_a.usage.completion_tokens)
-                        
-                res_a = resp_a.choices[0].message.content.strip()
-                
+            
+            max_retries = 3
+            for attempt in range(max_retries):
                 try:
-                    from utils.helpers import clean_json
-                    json_res = json.loads(clean_json(res_a))
-                    analyzed_keywords.append(json_res)
-                except Exception as je:
-                    st.warning(f"Błąd parsowania JSON dla frazy {item['keyword']}: {je}\nOdpowiedź modelu: {res_a[:200]}...")
-            except Exception as e:
-                st.warning(f"Błąd przy frazie {item['keyword']}: {e}")
+                    call_a_kwargs = {
+                        "model": params_5a["model"],
+                        "response_format": { "type": "json_object" },
+                        "messages": [
+                            {"role": "system", "content": step5_sys_a},
+                            {"role": "user", "content": prompt}
+                        ]
+                    }
+                    if "temperature" in params_5a: call_a_kwargs["temperature"] = params_5a["temperature"]
+                    if "max_tokens" in params_5a:
+                        if any(m in params_5a["model"] for m in ["gpt-5", "o1", "o3"]): call_a_kwargs["max_completion_tokens"] = params_5a["max_tokens"]
+                        else: call_a_kwargs["max_tokens"] = params_5a["max_tokens"]
+                    if "reasoning_effort" in params_5a: call_a_kwargs["reasoning_effort"] = params_5a["reasoning_effort"]
+                        
+                    resp_a = client.chat.completions.create(**call_a_kwargs)
+                    if resp_a.usage:
+                        from utils.helpers import track_usage
+                        track_usage(params_5a["model"], resp_a.usage.prompt_tokens, resp_a.usage.completion_tokens)
+                            
+                    res_a = resp_a.choices[0].message.content.strip()
+                    
+                    try:
+                        from utils.helpers import clean_json
+                        json_res = json.loads(clean_json(res_a))
+                        analyzed_keywords.append(json_res)
+                    except Exception as je:
+                        st.warning(f"Błąd parsowania JSON dla frazy {item['keyword']}: {je}\nOdpowiedź modelu: {res_a[:200]}...")
+                    break # Success, exit retry loop
+                    
+                except Exception as e:
+                    if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
+                        if attempt < max_retries - 1:
+                            my_bar_1.progress((i) / len(unique_brand_data), text=f"Analiza: {i+1}/{len(unique_brand_data)} fraz. (Rate Limit - czekam 10s...)")
+                            time.sleep(10)
+                        else:
+                            st.warning(f"Błąd Rate Limit przy frazie {item['keyword']} po 3 próbach: {e}")
+                    else:
+                        st.warning(f"Błąd przy frazie {item['keyword']}: {e}")
+                        break
                 
             my_bar_1.progress((i + 1) / len(unique_brand_data), text=f"Analiza: {i+1}/{len(unique_brand_data)} fraz.")
             

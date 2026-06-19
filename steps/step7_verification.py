@@ -114,8 +114,8 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 st.error("Brak klucza OpenAI.")
             else:
                 my_pages_context = ""
-                url_col = "URL" if "URL" in df_my.columns else df_my.columns[0]
-                title_col = "Title" if "Title" in df_my.columns else ("Tytuł" if "Tytuł" in df_my.columns else None)
+                url_col = "URL" if "URL" in df_my.columns else ("Address" if "Address" in df_my.columns else df_my.columns[0])
+                title_col = "Title 1" if "Title 1" in df_my.columns else ("Title" if "Title" in df_my.columns else ("Tytuł" if "Tytuł" in df_my.columns else None))
                 
                 for idx, row in df_my.iterrows():
                     u = str(row.get(url_col, ""))
