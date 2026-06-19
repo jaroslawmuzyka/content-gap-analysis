@@ -566,10 +566,26 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 
         if sheets:
             excel_data = to_excel_multi(sheets)
-            st.download_button(
-                label="📥 Pobierz Analizę Brandu (XLSX)",
-                data=excel_data,
-                file_name='analiza_brandu.xlsx',
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                type="primary"
-            )
+            col1, col2 = st.columns(2)
+            with col1:
+                st.download_button(
+                    label="📥 Pobierz Analizę Brandu (XLSX)",
+                    data=excel_data,
+                    file_name='analiza_brandu.xlsx',
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    type="primary"
+                )
+            with col2:
+                # Prepare combined JSON
+                combined_json = {
+                    "etap1_frazy": st.session_state.get("brand_analysis_results", []),
+                    "etap2_klastry": st.session_state.get("brand_clusters", {})
+                }
+                json_str = json.dumps(combined_json, ensure_ascii=False, indent=2)
+                st.download_button(
+                    label="📥 Pobierz Pełny JSON (Etap 1 + Etap 2)",
+                    data=json_str,
+                    file_name='analiza_brandu_pelny.json',
+                    mime='application/json',
+                    type="secondary"
+                )

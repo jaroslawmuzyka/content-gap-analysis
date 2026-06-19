@@ -38,12 +38,13 @@ def render(openai_api_key):
         # 2. Wybór trybu pracy
         mode = st.radio(
             "Wybierz tryb pracy w Kroku 7:",
-            ["Weryfikacja AI nowej listy", "Wgraj gotowy plik z wynikami (ominięcie AI)"]
+            ["Weryfikacja AI nowej listy", "Wznów analizę z częściowego/gotowego pliku XLSX"]
         )
         
-        if mode == "Wgraj gotowy plik z wynikami (ominięcie AI)":
-            st.info("Wgraj plik (Excel lub CSV), który zawiera połączone/wcześniej zweryfikowane pomysły. Narzędzie przeskoczy proces AI.")
-            ready_file = st.file_uploader("Wgraj gotowy plik Weryfikacji", type=['csv', 'xlsx', 'xls'], key="ready_file_verification")
+        df_ready = None
+        if mode == "Wznów analizę z częściowego/gotowego pliku XLSX":
+            st.info("Wgraj plik (Excel lub CSV), który udało Ci się pobrać po przerwanej sesji. Narzędzie wczyta zrobione już pomysły i zweryfikuje tylko pozostałe, a na końcu połączy wyniki.")
+            ready_file = st.file_uploader("Wgraj częściowy plik Weryfikacji", type=['csv', 'xlsx', 'xls'], key="ready_file_verification")
             if ready_file:
                 try:
                     if ready_file.name.endswith('.csv'):
@@ -51,16 +52,22 @@ def render(openai_api_key):
                     else:
                         df_ready = pd.read_excel(ready_file)
                         
-                    st.success(f"Pomyślnie wczytano plik z {len(df_ready)} wierszami!")
+                    processed_urls = df_ready["Competitor URL"].dropna().unique() if "Competitor URL" in df_ready.columns else []
+                    
+                    df_accepted_urls = df_accepted["Competitor URL"].dropna().unique() if "Competitor URL" in df_accepted.columns else []
+                    remaining = len(set(df_accepted_urls) - set(processed_urls))
+                    
+                    st.success(f"Pomyślnie wczytano plik! Wykryto {len(processed_urls)} przetworzonych pomysłów. Pozostało do weryfikacji: {remaining}")
                     st.dataframe(df_ready.head())
                     
-                    if st.button("Zapisz te wyniki i przejdź dalej", type="primary"):
-                        st.session_state.df_verified_results = df_ready
-                        st.success("Zapisano! Możesz przejść do kroku z raportami.")
+                    if remaining <= 0:
+                        if st.button("Zapisz te wyniki i przejdź dalej", type="primary"):
+                            st.session_state.df_verified_results = df_ready
+                            st.success("Zapisano! Wszystkie pomysły są zweryfikowane. Możesz przejść do kroku z raportami.")
+                        return # Koniec rysowania, jeśli wszystko zrobione
                 except Exception as e:
                     st.error(f"Błąd podczas wczytywania gotowego pliku: {e}")
-            return # Przerywamy dalsze rysowanie strony dla tego trybu
-            
+        
         with st.expander("⚙️ Opcje AI (Model, Prompty, Parametry)"):
             models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-5.5", "gpt-5.4-mini", "o1-mini", "o3-mini"]
             
@@ -162,6 +169,16 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
             elif not openai_api_key:
                 st.error("Brak klucza OpenAI.")
             else:
+                df_accepted_to_process = df_accepted
+                if df_ready is not None and "Competitor URL" in df_ready.columns:
+                    processed_urls = df_ready["Competitor URL"].dropna().unique()
+                    df_accepted_to_process = df_accepted[~df_accepted["Competitor URL"].isin(processed_urls)]
+                    
+                if len(df_accepted_to_process) == 0:
+                    st.success("Wszystkie adresy zostały już przeanalizowane w załączonym pliku. Nie ma nic więcej do zrobienia!")
+                    if df_ready is not None:
+                        st.session_state.df_verified_results = df_ready
+                    st.stop()
                 my_pages_context = ""
                 url_col = "URL" if "URL" in df_my.columns else ("Address" if "Address" in df_my.columns else df_my.columns[0])
                 title_col = "Title 1" if "Title 1" in df_my.columns else ("Title" if "Title" in df_my.columns else ("Tytuł" if "Tytuł" in df_my.columns else None))
@@ -188,9 +205,9 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                 import json
                 batch_size = 10
                 
-                # Konwertujemy df_accepted do listy w celu łatwiejszego iterowania
-                for i in range(0, len(df_accepted), batch_size):
-                    batch = df_accepted.iloc[i:i+batch_size]
+                # Konwertujemy df_accepted_to_process do iteracji
+                for i in range(0, len(df_accepted_to_process), batch_size):
+                    batch = df_accepted_to_process.iloc[i:i+batch_size]
                     
                     batch_data_list = []
                     for idx, row in batch.iterrows():
@@ -251,44 +268,47 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                                     row_dict["Status na własnej stronie"] = "BŁĄD MODELU"
                                     row_dict["Weryfikacja Uzasadnienie"] = "Brak ID w odpowiedzi"
                                 results_verified.append(row_dict)
-                            break # wyjście z pętli retry przy sukcesie
+                            break 
                             
                         except Exception as e:
                             if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
                                 if attempt < max_retries - 1:
-                                    my_bar.progress(min(1.0, i / len(df_accepted)), text=f"Weryfikacja: {i}/{len(df_accepted)} wierszy. (Rate Limit - czekam 10s...)")
+                                    my_bar.progress(min(1.0, i / len(df_accepted_to_process)), text=f"Weryfikacja: {i}/{len(df_accepted_to_process)}. (Rate Limit - 10s...)")
                                     time.sleep(10)
                                 else:
-                                    st.warning(f"Błąd Rate Limit przy paczce po 3 próbach: {e}")
+                                    st.warning(f"Rate Limit przy paczce {i}-{i+batch_size}: {e}")
                             else:
-                                for idx, row in batch.iterrows():
-                                    row_dict = row.to_dict()
-                                    row_dict["Status na własnej stronie"] = f"Błąd JSON lub API: {e}"
-                                    row_dict["Weryfikacja Uzasadnienie"] = ""
-                                    results_verified.append(row_dict)
+                                st.warning(f"Błąd przy paczce {i}-{i+batch_size}: {e}")
                                 break
                             
-                    # Dynamiczny podgląd na żywo i zapis
+                    progress_value = min(1.0, (i + len(batch)) / len(df_accepted_to_process))
+                    my_bar.progress(progress_value, text=f"Weryfikacja: {i+len(batch)}/{len(df_accepted_to_process)}")
+                    
                     if results_verified:
                         df_current = pd.DataFrame(results_verified)
+                        if df_ready is not None:
+                            df_current = pd.concat([df_ready, df_current], ignore_index=True)
                         table_placeholder.dataframe(df_current)
-                        # Zapis awaryjny (Auto-save) do XLSX
-                        df_current.to_excel("temp_verification_results_backup.xlsx", index=False)
+                        to_excel(df_current, "temp_verification_results_backup.xlsx")
+                
+                if not results_verified and len(df_accepted_to_process) > 0:
+                    st.error("Nie udało się zweryfikować żadnego z pozostałych pomysłów.")
+                else:
+                    df_newly_verified = pd.DataFrame(results_verified) if results_verified else pd.DataFrame()
+                    
+                    if df_ready is not None:
+                        df_final_verified = pd.concat([df_ready, df_newly_verified], ignore_index=True)
+                    else:
+                        df_final_verified = df_newly_verified
                         
-                    progress_value = min(1.0, (i + len(batch)) / len(df_accepted))
-                    my_bar.progress(progress_value, text=f"Weryfikacja {i+len(batch)}/{len(df_accepted)}...")
-                
-                df_verified = pd.DataFrame(results_verified)
-                st.session_state.df_verified_results = df_verified
-                st.success("Weryfikacja zakończona!")
-                
-                # Usuwamy plik backupu po udanej analizie
-                if os.path.exists("temp_verification_results_backup.xlsx"):
-                    os.remove("temp_verification_results_backup.xlsx")
+                    st.session_state.df_verified_results = df_final_verified
+                    if os.path.exists("temp_verification_results_backup.xlsx"):
+                        os.remove("temp_verification_results_backup.xlsx")
+                    st.success("Weryfikacja zakończona pomyślnie!")
                 
                 st.download_button(
                     label="📥 Pobierz zweryfikowane pomysły (XLSX)",
-                    data=to_excel(df_verified),
+                    data=to_excel(st.session_state.df_verified_results),
                     file_name='zweryfikowane_pomysly.xlsx',
                     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 )
