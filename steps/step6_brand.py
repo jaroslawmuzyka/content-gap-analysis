@@ -442,41 +442,41 @@ Zwróć wyłącznie poprawny JSON w strukturze:
             
         st.info("Etap 1 zakończony. Rozpoczynam Etap 2: Grupowanie i klastrowanie...")
         analyzed_keywords_to_process = analyzed_keywords
-    else:
-        st.info("Znaleziono wgrane wyniki Etapu 1. Pomijam powtórną analizę fraz i przechodzę od razu do Etapu 2 (Klastrowanie).")
-        analyzed_keywords_to_process = st.session_state.brand_analysis_results
-        
-    # Etap 2: Grupowanie
-    prompt_5b = step5_user_b.replace("{brand_keyword_analysis_json}", json.dumps(analyzed_keywords_to_process, ensure_ascii=False)).replace("{full_context}", full_context)
-        
-    try:
-        call_b_kwargs = {
-            "model": params_5b["model"],
-            "response_format": { "type": "json_object" },
-            "messages": [
-                {"role": "system", "content": step5_sys_b},
-                {"role": "user", "content": prompt_5b}
-            ]
-        }
-        if "temperature" in params_5b: call_b_kwargs["temperature"] = params_5b["temperature"]
-        if "max_tokens" in params_5b:
-            if any(m in params_5b["model"] for m in ["gpt-5", "o1", "o3"]): call_b_kwargs["max_completion_tokens"] = params_5b["max_tokens"]
-            else: call_b_kwargs["max_tokens"] = params_5b["max_tokens"]
-        if "reasoning_effort" in params_5b: call_b_kwargs["reasoning_effort"] = params_5b["reasoning_effort"]
+        else:
+            st.info("Znaleziono wgrane wyniki Etapu 1. Pomijam powtórną analizę fraz i przechodzę od razu do Etapu 2 (Klastrowanie).")
+            analyzed_keywords_to_process = st.session_state.brand_analysis_results
             
-        resp_b = client.chat.completions.create(**call_b_kwargs)
-        if resp_b.usage:
-            from utils.helpers import track_usage
-            track_usage(params_5b["model"], resp_b.usage.prompt_tokens, resp_b.usage.completion_tokens)
+        # Etap 2: Grupowanie
+        prompt_5b = step5_user_b.replace("{brand_keyword_analysis_json}", json.dumps(analyzed_keywords_to_process, ensure_ascii=False)).replace("{full_context}", full_context)
             
-        from utils.helpers import clean_json
-        final_json = json.loads(clean_json(resp_b.choices[0].message.content))
-        
-        st.session_state.brand_clusters = final_json
-        st.success("Analiza i klastrowanie zakończone pomyślnie!")
-        
-    except Exception as e:
-        st.error(f"Błąd w Etapie 2 (Grupowanie): {e}")
+        try:
+            call_b_kwargs = {
+                "model": params_5b["model"],
+                "response_format": { "type": "json_object" },
+                "messages": [
+                    {"role": "system", "content": step5_sys_b},
+                    {"role": "user", "content": prompt_5b}
+                ]
+            }
+            if "temperature" in params_5b: call_b_kwargs["temperature"] = params_5b["temperature"]
+            if "max_tokens" in params_5b:
+                if any(m in params_5b["model"] for m in ["gpt-5", "o1", "o3"]): call_b_kwargs["max_completion_tokens"] = params_5b["max_tokens"]
+                else: call_b_kwargs["max_tokens"] = params_5b["max_tokens"]
+            if "reasoning_effort" in params_5b: call_b_kwargs["reasoning_effort"] = params_5b["reasoning_effort"]
+                
+            resp_b = client.chat.completions.create(**call_b_kwargs)
+            if resp_b.usage:
+                from utils.helpers import track_usage
+                track_usage(params_5b["model"], resp_b.usage.prompt_tokens, resp_b.usage.completion_tokens)
+                
+            from utils.helpers import clean_json
+            final_json = json.loads(clean_json(resp_b.choices[0].message.content))
+            
+            st.session_state.brand_clusters = final_json
+            st.success("Analiza i klastrowanie zakończone pomyślnie!")
+            
+        except Exception as e:
+            st.error(f"Błąd w Etapie 2 (Grupowanie): {e}")
 
     if "brand_clusters" in st.session_state:
         st.markdown("---")
