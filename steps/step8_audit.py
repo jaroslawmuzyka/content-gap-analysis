@@ -141,7 +141,10 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                     for item in st.session_state.product_analysis:
                         products_context += f"- Produkt: {item['url']}\n  Analiza: {item['analysis']}\n\n"
                         
-                headers = {"Accept": "application/json"}
+                headers = {
+                    "Accept": "application/json",
+                    "X-Retain-Images": "none"
+                }
                 if st.session_state.get("jina_api_key"):
                     headers["Authorization"] = f"Bearer {st.session_state.jina_api_key}"
                 

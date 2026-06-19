@@ -829,7 +829,10 @@ Napisz krótkie, decyzyjne podsumowanie:
                 
                 try:
                     if content is None:
-                        headers = {"Accept": "application/json"}
+                        headers = {
+                            "Accept": "application/json",
+                            "X-Retain-Images": "none"
+                        }
                         if st.session_state.get("jina_api_key"):
                             headers["Authorization"] = f"Bearer {st.session_state.jina_api_key}"
                         if scrape_mode == "Pomiń cache (X-No-Cache)":
