@@ -8,16 +8,17 @@ def render(openai_api_key):
     st.header("Krok 4: Mapowanie Content Gap (Non-Brand)")
     
     # 1. Sprawdzanie czy istnieje plik awaryjny
-    if os.path.exists("temp_gap_results_backup.csv"):
+    if os.path.exists("temp_gap_results_backup.xlsx"):
         st.warning("⚠️ Wykryto niezakończoną analizę z poprzedniej sesji! (System zapisał część wyników przed awarią lub przerwaniem).")
         try:
-            df_backup = pd.read_csv("temp_gap_results_backup.csv")
-            csv_backup = df_backup.to_csv(index=False).encode('utf-8')
+            with open("temp_gap_results_backup.xlsx", "rb") as f:
+                xlsx_backup = f.read()
+            df_backup = pd.read_excel("temp_gap_results_backup.xlsx")
             st.download_button(
                 label=f"📥 Pobierz uratowane wyniki ({len(df_backup)} rekordów)",
-                data=csv_backup,
-                file_name="uratowane_wyniki_krok4.csv",
-                mime="text/csv",
+                data=xlsx_backup,
+                file_name="uratowane_wyniki_krok4.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 type="primary"
             )
         except Exception as e:
@@ -290,7 +291,7 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                             df_current = pd.DataFrame(results)
                             table_placeholder.dataframe(df_current)
                             # Zapis awaryjny (Auto-save)
-                            df_current.to_csv("temp_gap_results_backup.csv", index=False)
+                            df_current.to_excel("temp_gap_results_backup.xlsx", index=False)
                             
                         progress_value = min(1.0, (i + len(batch)) / len(df_gap))
                         my_bar.progress(progress_value, text=f"Przeanalizowano {i+len(batch)}/{len(df_gap)} wierszy.")
@@ -301,8 +302,8 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                         st.success("Analiza zakończona!")
                         
                         # Usuwamy plik backupu po udanej analizie
-                        if os.path.exists("temp_gap_results_backup.csv"):
-                            os.remove("temp_gap_results_backup.csv")
+                        if os.path.exists("temp_gap_results_backup.xlsx"):
+                            os.remove("temp_gap_results_backup.xlsx")
                         
                         df_accepted = df_results[df_results['AI Verdict'] == "PASUJE"]
                         df_rejected = df_results[df_results['AI Verdict'] != "PASUJE"]

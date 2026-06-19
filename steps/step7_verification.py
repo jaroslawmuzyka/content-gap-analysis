@@ -17,16 +17,17 @@ def render(openai_api_key):
         st.info(f"Do weryfikacji mamy {len(df_accepted)} zaakceptowanych pomysłów na wpisy oraz {len(df_my)} własnych podstron.")
         
         # 1. Sprawdzanie czy istnieje plik awaryjny
-        if os.path.exists("temp_verification_results_backup.csv"):
+        if os.path.exists("temp_verification_results_backup.xlsx"):
             st.warning("⚠️ Wykryto niezakończoną weryfikację z poprzedniej sesji!")
             try:
-                df_backup = pd.read_csv("temp_verification_results_backup.csv")
-                csv_backup = df_backup.to_csv(index=False).encode('utf-8')
+                with open("temp_verification_results_backup.xlsx", "rb") as f:
+                    xlsx_backup = f.read()
+                df_backup = pd.read_excel("temp_verification_results_backup.xlsx")
                 st.download_button(
                     label=f"📥 Pobierz uratowane wyniki weryfikacji ({len(df_backup)} rekordów)",
-                    data=csv_backup,
-                    file_name="uratowane_wyniki_krok7.csv",
-                    mime="text/csv",
+                    data=xlsx_backup,
+                    file_name="uratowane_wyniki_krok7.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     type="primary"
                 )
             except Exception as e:
@@ -271,8 +272,8 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                     if results_verified:
                         df_current = pd.DataFrame(results_verified)
                         table_placeholder.dataframe(df_current)
-                        # Zapis awaryjny (Auto-save) do CSV
-                        df_current.to_csv("temp_verification_results_backup.csv", index=False)
+                        # Zapis awaryjny (Auto-save) do XLSX
+                        df_current.to_excel("temp_verification_results_backup.xlsx", index=False)
                         
                     progress_value = min(1.0, (i + len(batch)) / len(df_accepted))
                     my_bar.progress(progress_value, text=f"Weryfikacja {i+len(batch)}/{len(df_accepted)}...")
@@ -282,8 +283,8 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                 st.success("Weryfikacja zakończona!")
                 
                 # Usuwamy plik backupu po udanej analizie
-                if os.path.exists("temp_verification_results_backup.csv"):
-                    os.remove("temp_verification_results_backup.csv")
+                if os.path.exists("temp_verification_results_backup.xlsx"):
+                    os.remove("temp_verification_results_backup.xlsx")
                 
                 st.download_button(
                     label="📥 Pobierz zweryfikowane pomysły (XLSX)",
