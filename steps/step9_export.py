@@ -32,7 +32,12 @@ def render():
             frazy_str = ", ".join([str(f.get("keyword", "")) for f in frazy])
             vol_sum = sum([int(f.get("volume", 0)) for f in frazy if str(f.get("volume")).isdigit()])
             url_title = k.get("proponowany_title", k.get("proponowany_h1", k.get("nazwa_klastra", "")))
+            url_target = k.get("docelowa_istniejaca_strona", k.get("produkt", ""))
+            sekcje_str = "\n".join([f"- {s.get('naglowek', '')}: {s.get('cel_sekcji', '')}" for s in k.get("proponowane_sekcje", [])])
+            faq_str = "\n".join([f"- Q: {f.get('pytanie', '')}\n  A: {f.get('bezpieczna_odpowiedz', '')}" for f in k.get("proponowane_faq", [])])
+            
             cluster_data.append({
+                "Adres URL (Docelowy / Produkt)": url_target,
                 "Proponowany Title / H1": url_title,
                 "Nazwa Klastra": k.get("nazwa_klastra", ""),
                 "Frazy w klastrze": frazy_str,
@@ -40,7 +45,11 @@ def render():
                 "Rekomendowana Akcja": k.get("rekomendacja", ""),
                 "Priorytet": k.get("priorytet", ""),
                 "Typ Klastra": k.get("typ_klastra", ""),
-                "Uzasadnienie": k.get("uzasadnienie_rekomendacji", "")
+                "Bezpieczny Kierunek": k.get("bezpieczny_kierunek_tresci", ""),
+                "Czego NIE sugerować": k.get("czego_nie_sugerowac", ""),
+                "Uzasadnienie": k.get("uzasadnienie_rekomendacji", ""),
+                "Proponowane Sekcje": sekcje_str,
+                "Proponowane FAQ": faq_str
             })
         if cluster_data:
             sheets["5. Brand Klastry"] = pd.DataFrame(cluster_data)
