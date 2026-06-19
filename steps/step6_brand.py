@@ -46,22 +46,6 @@ Nie oceniasz wyłącznie potencjału SEO. Oceniasz również:
 * zasadność stworzenia artykułu, landing page’a, porównania lub sekcji zakupowej.
 
 Zasady analizy:
-1. Zwracaj wyłącznie poprawny obiekt JSON.
-2. Nie dodawaj komentarzy, markdowna ani tekstu poza JSON-em.
-3. Nie wymyślaj działania produktu, którego nie potwierdza kontekst produktów klienta.
-4. Nie rekomenduj treści, które sugerują leczenie choroby, jeżeli produkt nie ma takiego zastosowania.
-5. Jeżeli fraza dotyczy choroby, leczenia, ciąży, niemowląt, ran, infekcji, działań niepożądanych, przeciwwskazań, stosowania na błony śluzowe lub stosowania poza oczywistym zakresem produktu, oznacz wysokie ryzyko albo konieczność weryfikacji.
-6. Jeżeli produkt może wspierać skutek problemu, ale nie rozwiązuje problemu pierwotnego, nie rekomenduj treści sugerującej leczenie problemu pierwotnego.
-7. Przykład: jeśli fraza dotyczy trądziku, a produkt może pomagać wyłącznie na przesuszenie skóry po terapii przeciwtrądzikowej, nie rekomenduj artykułu „Linomag na trądzik”. Bezpieczniejszy kierunek to „sucha skóra po terapii przeciwtrądzikowej”.
-8. Domyślnie unikaj tworzenia osobnej podstrony dla jednej frazy, jeżeli można ją bezpiecznie obsłużyć sekcją FAQ, akapitem na stronie produktu albo częścią większego klastra.
-9. Osobną podstronę rekomenduj tylko wtedy, gdy fraza ma jasną intencję, dobre dopasowanie do produktu, sensowny potencjał SEO i nie powoduje kanibalizacji.
-10. Bierz pod uwagę pozycję:
-* pozycje 1–3: zwykle utrzymanie i ewentualna rozbudowa istniejącej treści,
-* pozycje 4–10: optymalizacja istniejącej strony, FAQ, sekcji lub title/H1,
-* pozycje 11–30: szansa na mocniejszą rozbudowę albo nową sekcję,
-* pozycje powyżej 30: możliwa nowa treść, jeśli volume i dopasowanie są dobre.
-11. Bierz pod uwagę volume:
-* wysokie volume + dobre dopasowanie = wyższy priorytet,
 * niskie volume + fraza bezpieczeństwa lub zakupowa może nadal mieć sens,
 * niskie volume + luźne dopasowanie = niski priorytet albo odrzucenie.
 12. Frazy brandowe często są blisko decyzji zakupowej, dlatego zwracaj uwagę na zapytania typu: cena, skład, opinie, ulotka, jak stosować, od jakiego wieku, na co, czy można, zamiennik, porównanie z konkurencją.
@@ -69,18 +53,16 @@ Zasady analizy:
 14. Zachowaj rygor: lepiej zarekomendować krótkie FAQ niż niepotrzebną osobną podstronę."""
         step5_sys_a = st.text_area("System Prompt (Analiza Frazy)", value=sys_5a_def, height=250, key="step5_sys_a")
         
-        user_5a_def = """Przeanalizuj pojedynczą frazę brandową na podstawie danych SEO oraz kontekstu produktów klienta.
+        user_5a_def = """Przeanalizuj paczkę fraz brandowych na podstawie danych SEO oraz kontekstu produktów klienta.
 
-Dane frazy:
-Keyword: {keyword}
-Position: {position}
-Volume: {volume}
+Dane paczki (lista obiektów):
+{batch_data}
 
 Kontekst produktów klienta:
 {products_context}
 
 Cel analizy:
-Chcę sprawdzić, czy klient powinien odpowiedzieć na tę frazę poprzez:
+Dla KAŻDEJ frazy z paczki sprawdź, czy klient powinien na nią odpowiedzieć poprzez:
 * stworzenie nowej podstrony,
 * rozbudowę istniejącej strony produktu,
 * dodanie sekcji FAQ,
@@ -89,34 +71,39 @@ Chcę sprawdzić, czy klient powinien odpowiedzieć na tę frazę poprzez:
 * stworzenie porównania,
 * dodanie sekcji „gdzie kupić”,
 * dodanie informacji o składzie, bezpieczeństwie, stosowaniu lub przeciwwskazaniach,
-* albo nietworzenie żadnej treści, jeśli fraza jest nieadekwatna, zbyt ryzykowna lub zbyt słabo powiązana z produktem.
+* albo nietworzenie żadnej treści.
 
-Zwróć wyłącznie poprawny JSON w strukturze:
+Zwróć wyłącznie poprawny JSON o następującej strukturze:
 {
-"keyword": "{keyword}",
-"position": {position},
-"volume": {volume},
-"typ_frazy": "produktowa | problemowa | zastosowanie | pytanie_o_stosowanie | bezpieczenstwo | sklad | przeciwwskazania | porownawcza | zakupowa | opinie | wariant_produktu | wiek_lub_grupa_docelowa | niejasna",
-"intencja": "informacyjna | poradnikowa | produktowa | transakcyjna | porownawcza | nawigacyjna | bezpieczeństwo | niejasna",
-"etap_sciezki_uzytkownika": "poznanie | rozważanie | decyzja | po_zakupie | niejasne",
-"produkt": "najlepiej dopasowany produkt lub adres URL produktu z kontekstu klienta albo pusty string",
-"segment": "problem, potrzeba lub kategoria, np. sucha skóra, otarcia, odparzenia, skład, cena",
-"problem_uzytkownika": "krótki opis tego, czego użytkownik prawdopodobnie szuka",
-"dopasowanie_do_produktu": "bezposrednie | posrednie | luzne | brak",
-"czy_obecna_strona_powinna_odpowiadac": true,
-"czy_potrzebna_nowa_podstrona": true,
-"rekomendowany_typ_tresci": "DODAJ_FAQ | ROZBUDUJ_STRONE_PRODUKTU | STWORZ_ARTYKUL | STWORZ_LANDING | STWORZ_POROWNANIE | DODAJ_SEKCJE_GDZIE_KUPIC | DODAJ_SEKCJE_SKLAD | DODAJ_SEKCJE_BEZPIECZENSTWO | NIE_TWORZ_TRESCI | WYMAGA_WERYFIKACJI_MEDYCZNEJ",
-"proponowany_temat_lub_sekcja": "proponowany temat artykułu, nazwa sekcji, FAQ albo landing page",
-"bezpieczny_kierunek_odpowiedzi": "jak bezpiecznie odpowiedzieć na zapytanie użytkownika",
-"czego_nie_sugerowac": "jakich claimów, obietnic lub zastosowań nie należy sugerować",
-"czy_fraza_moze_byc_czescia_wiekszego_klastra": true,
-"proponowany_klaster": "nazwa klastra, np. sucha i podrażniona skóra, stosowanie u dzieci, skład i bezpieczeństwo",
-"potencjal_sprzedazowy": "wysoki | sredni | niski",
-"ryzyko_claimow": "niskie | srednie | wysokie",
-"wymaga_weryfikacji": true,
-"priorytet": "wysoki | sredni | niski",
-"uzasadnienie_priorytetu": "krótkie wyjaśnienie priorytetu z uwzględnieniem position, volume, dopasowania i ryzyka",
-"uzasadnienie": "jedno krótkie zdanie wyjaśniające rekomendację"
+  "results": [
+    {
+      "id": "identyfikator podany w batch_data",
+      "keyword": "analizowana fraza",
+      "position": "pozycja podana w batch_data",
+      "volume": "wolumen podany w batch_data",
+      "typ_frazy": "produktowa | problemowa | zastosowanie | pytanie_o_stosowanie | bezpieczenstwo | sklad | przeciwwskazania | porownawcza | zakupowa | opinie | wariant_produktu | wiek_lub_grupa_docelowa | niejasna",
+      "intencja": "informacyjna | poradnikowa | produktowa | transakcyjna | porownawcza | nawigacyjna | bezpieczeństwo | niejasna",
+      "etap_sciezki_uzytkownika": "poznanie | rozważanie | decyzja | po_zakupie | niejasne",
+      "produkt": "najlepiej dopasowany produkt lub adres URL produktu z kontekstu klienta albo pusty string",
+      "segment": "problem, potrzeba lub kategoria",
+      "problem_uzytkownika": "krótki opis tego, czego użytkownik prawdopodobnie szuka",
+      "dopasowanie_do_produktu": "bezposrednie | posrednie | luzne | brak",
+      "czy_obecna_strona_powinna_odpowiadac": true,
+      "czy_potrzebna_nowa_podstrona": true,
+      "rekomendowany_typ_tresci": "DODAJ_FAQ | ROZBUDUJ_STRONE_PRODUKTU | STWORZ_ARTYKUL | STWORZ_LANDING | STWORZ_POROWNANIE | DODAJ_SEKCJE_GDZIE_KUPIC | DODAJ_SEKCJE_SKLAD | DODAJ_SEKCJE_BEZPIECZENSTWO | NIE_TWORZ_TRESCI | WYMAGA_WERYFIKACJI_MEDYCZNEJ",
+      "proponowany_temat_lub_sekcja": "proponowany temat artykułu, nazwa sekcji, FAQ albo landing page",
+      "bezpieczny_kierunek_odpowiedzi": "jak bezpiecznie odpowiedzieć na zapytanie użytkownika",
+      "czego_nie_sugerowac": "jakich claimów, obietnic lub zastosowań nie należy sugerować",
+      "czy_fraza_moze_byc_czescia_wiekszego_klastra": true,
+      "proponowany_klaster": "nazwa klastra",
+      "potencjal_sprzedazowy": "wysoki | sredni | niski",
+      "ryzyko_claimow": "niskie | srednie | wysokie",
+      "wymaga_weryfikacji": true,
+      "priorytet": "wysoki | sredni | niski",
+      "uzasadnienie_priorytetu": "krótkie wyjaśnienie priorytetu",
+      "uzasadnienie": "jedno krótkie zdanie wyjaśniające rekomendację"
+    }
+  ]
 }"""
         step5_user_a = st.text_area("User Prompt (Analiza Frazy)", value=user_5a_def, height=250, key="step5_user_a")
 
@@ -322,8 +309,22 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         my_bar_1 = st.progress(0, text="Analiza fraz w toku...")
         
         import time
-        for i, item in enumerate(unique_brand_data):
-            prompt = step5_user_a.replace("{keyword}", str(item["keyword"])).replace("{position}", str(item["position"])).replace("{volume}", str(item["volume"])).replace("{products_context}", products_analysis_context)
+        batch_size = 15
+        
+        for i in range(0, len(unique_brand_data), batch_size):
+            batch = unique_brand_data[i:i+batch_size]
+            
+            batch_data_list = []
+            for idx, item in enumerate(batch):
+                batch_data_list.append({
+                    "id": i + idx,
+                    "keyword": str(item["keyword"]),
+                    "position": str(item["position"]),
+                    "volume": str(item["volume"])
+                })
+                
+            batch_data_str = json.dumps(batch_data_list, ensure_ascii=False)
+            prompt = step5_user_a.replace("{batch_data}", batch_data_str).replace("{products_context}", products_analysis_context)
             
             max_retries = 3
             for attempt in range(max_retries):
@@ -352,23 +353,31 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                     try:
                         from utils.helpers import clean_json
                         json_res = json.loads(clean_json(res_a))
-                        analyzed_keywords.append(json_res)
+                        results_array = json_res.get("results", [])
+                        
+                        # Add results ensuring id is removed so it doesn't pollute next step, and kw is intact
+                        for res in results_array:
+                            if "id" in res:
+                                del res["id"]
+                            analyzed_keywords.append(res)
+                            
                     except Exception as je:
-                        st.warning(f"Błąd parsowania JSON dla frazy {item['keyword']}: {je}\nOdpowiedź modelu: {res_a[:200]}...")
+                        st.warning(f"Błąd parsowania JSON dla paczki {i}-{i+batch_size}: {je}")
                     break # Success, exit retry loop
                     
                 except Exception as e:
                     if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
                         if attempt < max_retries - 1:
-                            my_bar_1.progress((i) / len(unique_brand_data), text=f"Analiza: {i+1}/{len(unique_brand_data)} fraz. (Rate Limit - czekam 10s...)")
+                            my_bar_1.progress(min(1.0, i / len(unique_brand_data)), text=f"Analiza: {i}/{len(unique_brand_data)} fraz. (Rate Limit - czekam 10s...)")
                             time.sleep(10)
                         else:
-                            st.warning(f"Błąd Rate Limit przy frazie {item['keyword']} po 3 próbach: {e}")
+                            st.warning(f"Błąd Rate Limit przy paczce {i}-{i+batch_size} po 3 próbach: {e}")
                     else:
-                        st.warning(f"Błąd przy frazie {item['keyword']}: {e}")
+                        st.warning(f"Błąd przy paczce {i}-{i+batch_size}: {e}")
                         break
                 
-            my_bar_1.progress((i + 1) / len(unique_brand_data), text=f"Analiza: {i+1}/{len(unique_brand_data)} fraz.")
+            progress_value = min(1.0, (i + len(batch)) / len(unique_brand_data))
+            my_bar_1.progress(progress_value, text=f"Analiza: {i+len(batch)}/{len(unique_brand_data)} fraz.")
             
         if not analyzed_keywords:
             st.error("Nie powiodła się analiza żadnej frazy.")

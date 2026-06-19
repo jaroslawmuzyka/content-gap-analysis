@@ -78,43 +78,35 @@ Nie oceniaj:
 * opłacalności tworzenia treści,
 * pełnej treści strony, bo jej nie znasz.
 
-Odpowiadaj wyłącznie poprawnym JSON-em. Nie dodawaj markdowna, komentarzy ani tekstu poza JSON-em."""
+Odpowiadaj wyłącznie poprawnym JSON-em z kluczem "results" będącym listą obiektów JSON. Nie dodawaj markdowna, komentarzy ani tekstu poza JSON-em."""
         step4_sys = st.text_area("System Prompt", value=step4_sys_def, height=300, key="step4_sys")
         
-        def_user_4 = """Zadanie: decyzja, czy temat strony konkurencji pasuje do produktu klienta.
+        def_user_4 = """Zadanie: decyzja, czy temat strony konkurencji pasuje do produktu klienta. Otrzymujesz paczkę adresów do oceny.
 
-Dane strony konkurencji:
-
-URL:
-{target_url}
-
-Title:
-{target_title}
+Dane paczki (lista obiektów):
+{batch_data}
 
 Kontekst produktów klienta:
 {products_context}
 
 Cel:
-Oceń, czy temat wynikający z URL-a i Title pasuje do któregoś produktu klienta.
+Oceń każdy z adresów URL z paczki, sprawdzając czy temat wynikający z URL-a i Title pasuje do któregoś produktu klienta.
 
-Masz odpowiedzieć krótko i decyzyjnie:
+Dla każdego wiersza masz odpowiedzieć krótko i decyzyjnie:
 * jeśli pasuje, wskaż produkt i w jednym zdaniu wyjaśnij dlaczego,
 * jeśli nie pasuje, zostaw produkt pusty i w jednym zdaniu wyjaśnij dlaczego.
 
-Pamiętaj:
-* masz tylko URL i Title,
-* nie znasz pełnej treści strony,
-* nie zgaduj,
-* używaj `{products_context}` jako głównego źródła decyzji,
-* akceptuj tylko jasne dopasowania,
-* odrzucaj tematy luźne, niejasne, zakupowe, listingowe, produktowe albo ryzykowne komunikacyjnie.
-
-Zwróć wyłącznie poprawny JSON:
+Zwróć wyłącznie poprawny JSON o następującej strukturze:
 {
-"ocena": "PASUJE | NIE_PASUJE",
-"produkt": "adres URL lub nazwa najlepiej dopasowanego produktu z kontekstu klienta albo pusty string",
-"segment": "krótki segment/problematyka, np. sucha skóra, odparzenia, łagodzenie objawów łuszczycy, wyprysk, wyprzenia albo pusty string",
-"uzasadnienie": "jedno krótkie zdanie wyjaśniające decyzję"
+  "results": [
+    {
+      "id": "identyfikator podany w batch_data",
+      "ocena": "PASUJE | NIE_PASUJE",
+      "produkt": "adres URL lub nazwa najlepiej dopasowanego produktu z kontekstu klienta albo pusty string",
+      "segment": "krótki segment/problematyka, np. sucha skóra, odparzenia, łagodzenie objawów łuszczycy, wyprysk, wyprzenia albo pusty string",
+      "uzasadnienie": "jedno krótkie zdanie wyjaśniające decyzję"
+    }
+  ]
 }"""
         step4_user = st.text_area("User Prompt", value=def_user_4, height=350, key="step4_user")
             
@@ -154,65 +146,99 @@ Zwróć wyłącznie poprawny JSON:
                     results = []
                     client = openai.OpenAI(api_key=openai_api_key)
                     
-                    for idx, row in df_gap.iterrows():
-                        target_url = row.get("URL", "")
-                        target_title = row.get("Title", "")
+                    batch_size = 10
+                    import time
+                    for i in range(0, len(df_gap), batch_size):
+                        batch = df_gap.iloc[i:i+batch_size]
                         
-                        prompt = step4_user.replace("{target_url}", target_url).replace("{target_title}", target_title).replace("{products_context}", products_context)
+                        batch_data_list = []
+                        for idx, row in batch.iterrows():
+                            batch_data_list.append({
+                                "id": idx,
+                                "url": row.get("URL", ""),
+                                "title": row.get("Title", "")
+                            })
+                            
+                        import json
+                        batch_data_str = json.dumps(batch_data_list, ensure_ascii=False)
+                        
+                        prompt = step4_user.replace("{batch_data}", batch_data_str).replace("{products_context}", products_context)
                         sys_prompt = step4_sys.replace("{products_context}", products_context)
                         
-                        try:
-                            call_4_kwargs = {
-                                "model": params_4["model"],
-                                "response_format": { "type": "json_object" },
-                                "messages": [
-                                    {"role": "system", "content": sys_prompt},
-                                    {"role": "user", "content": prompt}
-                                ]
-                            }
-                            if "temperature" in params_4: call_4_kwargs["temperature"] = params_4["temperature"]
-                            if "max_tokens" in params_4:
-                                if any(m in params_4["model"] for m in ["gpt-5", "o1", "o3"]): call_4_kwargs["max_completion_tokens"] = params_4["max_tokens"]
-                                else: call_4_kwargs["max_tokens"] = params_4["max_tokens"]
-                            if "reasoning_effort" in params_4: call_4_kwargs["reasoning_effort"] = params_4["reasoning_effort"]
-                                
-                            ai_response = client.chat.completions.create(**call_4_kwargs)
-                            if ai_response.usage:
-                                from utils.helpers import track_usage
-                                track_usage(params_4["model"], ai_response.usage.prompt_tokens, ai_response.usage.completion_tokens)
-                            ans = ai_response.choices[0].message.content.strip()
-                            
-                            import json
-                            from utils.helpers import clean_json
+                        max_retries = 3
+                        for attempt in range(max_retries):
                             try:
-                                data = json.loads(clean_json(ans))
-                                ocena = str(data.get("ocena", "NIE_PASUJE")).upper().strip()
-                                produkt = data.get("produkt", "")
-                                segment = data.get("segment", "")
-                                uzasadnienie = data.get("uzasadnienie", "")
+                                call_4_kwargs = {
+                                    "model": params_4["model"],
+                                    "response_format": { "type": "json_object" },
+                                    "messages": [
+                                        {"role": "system", "content": sys_prompt},
+                                        {"role": "user", "content": prompt}
+                                    ]
+                                }
+                                if "temperature" in params_4: call_4_kwargs["temperature"] = params_4["temperature"]
+                                if "max_tokens" in params_4:
+                                    if any(m in params_4["model"] for m in ["gpt-5", "o1", "o3"]): call_4_kwargs["max_completion_tokens"] = params_4["max_tokens"]
+                                    else: call_4_kwargs["max_tokens"] = params_4["max_tokens"]
+                                if "reasoning_effort" in params_4: call_4_kwargs["reasoning_effort"] = params_4["reasoning_effort"]
+                                    
+                                ai_response = client.chat.completions.create(**call_4_kwargs)
+                                if ai_response.usage:
+                                    from utils.helpers import track_usage
+                                    track_usage(params_4["model"], ai_response.usage.prompt_tokens, ai_response.usage.completion_tokens)
+                                ans = ai_response.choices[0].message.content.strip()
                                 
-                                row_result = row.to_dict()
-                                row_result.update({
-                                    "AI Verdict": ocena,
-                                    "Recommended Product": produkt,
-                                    "Segment": segment,
-                                    "Reasoning": uzasadnienie
-                                })
-                                results.append(row_result)
-                            except:
-                                row_result = row.to_dict()
-                                row_result.update({
-                                    "AI Verdict": "BŁĄD/NIE_PASUJE",
-                                    "Recommended Product": "Błąd JSON",
-                                    "Segment": "",
-                                    "Reasoning": ans
-                                })
-                                results.append(row_result)
-                        except Exception as e:
-                            st.warning(f"Błąd OpenAI przy wierszu {idx}: {e}")
-                            
-                        progress_value = min(1.0, (idx + 1) / len(df_gap))
-                        my_bar.progress(progress_value, text=f"Przeanalizowano {idx+1}/{len(df_gap)} wierszy.")
+                                from utils.helpers import clean_json
+                                data = json.loads(clean_json(ans))
+                                results_array = data.get("results", [])
+                                
+                                # Tworzymy mapę wyników z tej paczki
+                                res_dict = {str(item.get("id")): item for item in results_array if "id" in item}
+                                
+                                for idx, row in batch.iterrows():
+                                    row_result = row.to_dict()
+                                    item = res_dict.get(str(idx), {})
+                                    if item:
+                                        ocena = str(item.get("ocena", "NIE_PASUJE")).upper().strip()
+                                        produkt = item.get("produkt", "")
+                                        segment = item.get("segment", "")
+                                        uzasadnienie = item.get("uzasadnienie", "")
+                                    else:
+                                        ocena = "BŁĄD/NIE_PASUJE"
+                                        produkt = "Brak id w JSON"
+                                        segment = ""
+                                        uzasadnienie = "Model pominął ten wiersz"
+                                        
+                                    row_result.update({
+                                        "AI Verdict": ocena,
+                                        "Recommended Product": produkt,
+                                        "Segment": segment,
+                                        "Reasoning": uzasadnienie
+                                    })
+                                    results.append(row_result)
+                                break # Wyjście z pętli retry przy sukcesie
+                            except Exception as e:
+                                if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
+                                    if attempt < max_retries - 1:
+                                        my_bar.progress(min(1.0, i / len(df_gap)), text=f"Analiza: {i}/{len(df_gap)} wierszy. (Rate Limit - czekam 10s...)")
+                                        time.sleep(10)
+                                    else:
+                                        st.warning(f"Błąd Rate Limit przy paczce {i}-{i+batch_size} po 3 próbach: {e}")
+                                else:
+                                    # Inny błąd JSON lub API, dla bezpieczeństwa dodajemy puste dla reszty paczki i przerywamy retry
+                                    for idx, row in batch.iterrows():
+                                        row_result = row.to_dict()
+                                        row_result.update({
+                                            "AI Verdict": "BŁĄD/NIE_PASUJE",
+                                            "Recommended Product": f"Błąd JSON lub API: {e}",
+                                            "Segment": "",
+                                            "Reasoning": "Brak danych"
+                                        })
+                                        results.append(row_result)
+                                    break
+                                
+                        progress_value = min(1.0, (i + len(batch)) / len(df_gap))
+                        my_bar.progress(progress_value, text=f"Przeanalizowano {i+len(batch)}/{len(df_gap)} wierszy.")
                     
                     if results:
                         df_results = pd.DataFrame(results)
