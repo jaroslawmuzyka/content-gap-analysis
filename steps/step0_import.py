@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 def render():
-    st.header("Krok 0: Wczytanie Sesji (Masowy Import)")
+    st.header("📥 Odtwarzanie Sesji (Import z pliku Excel)")
     st.markdown("Wgraj plik 'Raport_Krok9_Globalny.xlsx' (lub inny wyeksportowany raport), aby odtworzyć dane w aplikacji bez konieczności ponownego płacenia za API i czekania na generację AI.")
     
     uploaded_file = st.file_uploader("Wgraj wyeksportowany plik Excel", type=['xlsx'])
@@ -22,6 +22,9 @@ def render():
                     
                     if "4. Content Gap" in sheet_names:
                         st.session_state.df_gap_results = pd.read_excel(uploaded_file, sheet_name="4. Content Gap")
+                        
+                    if "5. Strony Własne" in sheet_names:
+                        st.session_state.my_pages_df = pd.read_excel(uploaded_file, sheet_name="5. Strony Własne")
                         
                     if "6. Brand Klastry" in sheet_names:
                         st.session_state.df_brand_clusters = pd.read_excel(uploaded_file, sheet_name="6. Brand Klastry")
@@ -46,6 +49,8 @@ def render():
                         st.session_state.global_stats["przeanalizowane_frazy"] = len(st.session_state.df_unpivoted)
                     if "4. Content Gap" in sheet_names:
                         st.session_state.global_stats["strony_konkurencji"] = len(st.session_state.df_gap_results)
+                    if "5. Strony Własne" in sheet_names:
+                        st.session_state.global_stats["strony_wlasne"] = len(st.session_state.my_pages_df)
                     if "6. Brand Klastry" in sheet_names:
                         st.session_state.global_stats["wygenerowane_pomysly"] = len(st.session_state.df_brand_clusters)
                     if "7. Weryfikacja Gap" in sheet_names:

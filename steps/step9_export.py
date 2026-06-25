@@ -25,6 +25,11 @@ def render():
     if "df_gap_results" in st.session_state:
         sheets["4. Content Gap"] = st.session_state.df_gap_results
         
+    # 5. Strony Własne (Krok 5)
+    if "my_pages_df" in st.session_state:
+        sheets["5. Strony Własne"] = st.session_state.my_pages_df
+        
+        
     # 6. Analiza Brandu (Krok 6)
     if "brand_clusters" in st.session_state:
         cluster_data = []

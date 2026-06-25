@@ -47,7 +47,11 @@ with st.sidebar:
     
     st.markdown("---")
     
-    step0 = st.button("Krok 0: Import Sesji (Masowy)", use_container_width=True)
+    st.markdown("### 📥 Import Danych")
+    step0 = st.button("Odtwórz sesję z pliku", use_container_width=True, type="secondary")
+    st.markdown("---")
+    
+    st.markdown("### ⚙️ Proces Analizy")
     step1 = st.button("Krok 1: Wgranie Danych Domeny", use_container_width=True)
     step2 = st.button("Krok 2: Analiza Produktów (Jina + AI)", use_container_width=True)
     step3 = st.button("Krok 3: Generowanie Fraz", use_container_width=True)
