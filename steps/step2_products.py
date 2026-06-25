@@ -4,8 +4,11 @@ import requests
 import openai
 import json
 
+from utils.helpers import track_usage, render_wow_metrics
+
 def render(openai_api_key):
     st.header("Krok 2: Analiza Produktów (Kaskada 4 Promptów)")
+    render_wow_metrics()
     
     input_mode = st.radio("Sposób wprowadzania produktów:", ["Automatycznie przez URL (Jina Reader)", "Wpisz ręcznie opisy"])
     
@@ -796,6 +799,159 @@ Napisz krótkie, decyzyjne podsumowanie:
             step2_sys_5 = st.text_area("System (P5)", value=sys_5_def, height=200, key="s5")
             step2_user_5 = st.text_area("User (P5)", value=usr_5_def, height=200, key="u5")
 
+        def analyze_single_product(url, content, client, idx=0, total=1, my_bar=None):
+            try:
+                if content is None:
+                    headers = {
+                        "Accept": "application/json",
+                        "X-Retain-Images": "none"
+                    }
+                    if st.session_state.get("jina_api_key"):
+                        headers["Authorization"] = f"Bearer {st.session_state.jina_api_key}"
+                    if scrape_mode == "Pomiń cache (X-No-Cache)":
+                        headers["X-No-Cache"] = "true"
+                    if css_include:
+                        headers["X-Target-Selector"] = css_include
+                    
+                    jina_url = f"https://r.jina.ai/{url}"
+                    response = requests.get(jina_url, headers=headers)
+                    if response.status_code == 200:
+                        content = response.json().get('data', {}).get('content', response.text)
+                    else:
+                        st.error(f"Błąd pobierania strony {url}: {response.status_code}")
+                        return None
+                    
+                if content:
+                    content_clipped = content[:8000]
+                    
+                    from utils.helpers import track_usage
+                    
+                    # --- PROMPT 1 ---
+                    prompt_1 = step2_user_1.replace("{url}", url).replace("{content}", content_clipped)
+                    call_1_kwargs = {"model": params_1["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_1}, {"role": "user", "content": prompt_1}]}
+                    if "temperature" in params_1: call_1_kwargs["temperature"] = params_1["temperature"]
+                    if "max_tokens" in params_1:
+                            if any(m in params_1["model"] for m in ["gpt-5", "o1", "o3"]): call_1_kwargs["max_completion_tokens"] = params_1["max_tokens"]
+                            else: call_1_kwargs["max_tokens"] = params_1["max_tokens"]
+                    if "reasoning_effort" in params_1: call_1_kwargs["reasoning_effort"] = params_1["reasoning_effort"]
+                    resp1 = client.chat.completions.create(**call_1_kwargs)
+                    r1 = resp1.choices[0].message.content
+                    if resp1.usage: track_usage(params_1["model"], resp1.usage.prompt_tokens, resp1.usage.completion_tokens)
+                    
+                    # --- PROMPT 2 ---
+                    prompt_2 = step2_user_2.replace("{product_facts_json}", r1)
+                    call_2_kwargs = {"model": params_2["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_2}, {"role": "user", "content": prompt_2}]}
+                    if "temperature" in params_2: call_2_kwargs["temperature"] = params_2["temperature"]
+                    if "max_tokens" in params_2:
+                            if any(m in params_2["model"] for m in ["gpt-5", "o1", "o3"]): call_2_kwargs["max_completion_tokens"] = params_2["max_tokens"]
+                            else: call_2_kwargs["max_tokens"] = params_2["max_tokens"]
+                    if "reasoning_effort" in params_2: call_2_kwargs["reasoning_effort"] = params_2["reasoning_effort"]
+                    resp2 = client.chat.completions.create(**call_2_kwargs)
+                    r2 = resp2.choices[0].message.content
+                    if resp2.usage: track_usage(params_2["model"], resp2.usage.prompt_tokens, resp2.usage.completion_tokens)
+                    
+                    # --- PROMPT 3 ---
+                    prompt_3 = step2_user_3.replace("{product_facts_json}", r1).replace("{max_keywords}", "30")
+                    call_3_kwargs = {"model": params_3["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_3}, {"role": "user", "content": prompt_3}]}
+                    if "temperature" in params_3: call_3_kwargs["temperature"] = params_3["temperature"]
+                    if "max_tokens" in params_3:
+                            if any(m in params_3["model"] for m in ["gpt-5", "o1", "o3"]): call_3_kwargs["max_completion_tokens"] = params_3["max_tokens"]
+                            else: call_3_kwargs["max_tokens"] = params_3["max_tokens"]
+                    if "reasoning_effort" in params_3: call_3_kwargs["reasoning_effort"] = params_3["reasoning_effort"]
+                    resp3 = client.chat.completions.create(**call_3_kwargs)
+                    r3 = resp3.choices[0].message.content
+                    if resp3.usage: track_usage(params_3["model"], resp3.usage.prompt_tokens, resp3.usage.completion_tokens)
+                    
+                    # --- PROMPT 4 ---
+                    prompt_4 = step2_user_4.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2).replace("{max_keywords}", "50")
+                    call_4_kwargs = {"model": params_4["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_4}, {"role": "user", "content": prompt_4}]}
+                    if "temperature" in params_4: call_4_kwargs["temperature"] = params_4["temperature"]
+                    if "max_tokens" in params_4:
+                            if any(m in params_4["model"] for m in ["gpt-5", "o1", "o3"]): call_4_kwargs["max_completion_tokens"] = params_4["max_tokens"]
+                            else: call_4_kwargs["max_tokens"] = params_4["max_tokens"]
+                    if "reasoning_effort" in params_4: call_4_kwargs["reasoning_effort"] = params_4["reasoning_effort"]
+                    resp4 = client.chat.completions.create(**call_4_kwargs)
+                    r4 = resp4.choices[0].message.content
+                    if resp4.usage: track_usage(params_4["model"], resp4.usage.prompt_tokens, resp4.usage.completion_tokens)
+                    
+                    # --- PROMPT 5 ---
+                    prompt_5 = step2_user_5.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2)
+                    call_5_kwargs = {"model": params_5["model"], "messages": [{"role": "system", "content": step2_sys_5}, {"role": "user", "content": prompt_5}]}
+                    if "temperature" in params_5: call_5_kwargs["temperature"] = params_5["temperature"]
+                    if "max_tokens" in params_5:
+                            if any(m in params_5["model"] for m in ["gpt-5", "o1", "o3"]): call_5_kwargs["max_completion_tokens"] = params_5["max_tokens"]
+                            else: call_5_kwargs["max_tokens"] = params_5["max_tokens"]
+                    if "reasoning_effort" in params_5: call_5_kwargs["reasoning_effort"] = params_5["reasoning_effort"]
+                    resp5 = client.chat.completions.create(**call_5_kwargs)
+                    r5 = resp5.choices[0].message.content
+                    if resp5.usage: track_usage(params_5["model"], resp5.usage.prompt_tokens, resp5.usage.completion_tokens)
+                    
+                    d1, d2, d3, d4 = {}, {}, {}, {}
+                    from utils.helpers import clean_json
+                    
+                    try: d1 = json.loads(clean_json(r1))
+                    except Exception: st.warning("Błąd parsowania JSON dla P1")
+                    
+                    try: d2 = json.loads(clean_json(r2))
+                    except Exception: st.warning("Błąd parsowania JSON dla P2")
+                    
+                    try: d3 = json.loads(clean_json(r3))
+                    except Exception: st.warning("Błąd parsowania JSON dla P3")
+                    
+                    try: d4 = json.loads(clean_json(r4))
+                    except Exception: st.warning("Błąd parsowania JSON dla P4")
+                    
+                    phrases_3 = [str(x).strip().lower() for x in d3.get("seed_keywords", [])] if d3 else []
+                    phrases_4 = [str(x).strip().lower() for x in d4.get("seed_keywords", [])] if d4 else []
+                    combined_phrases = list(dict.fromkeys(phrases_3 + phrases_4))
+                    
+                    md_lines = []
+                    if "produkt" in d1:
+                        md_lines.append("### 🏷 Fakty wyodrębnione z treści (P1)")
+                        p1 = d1["produkt"]
+                        md_lines.append(f"- **Nazwa:** {p1.get('nazwa', '')} | **Status:** {p1.get('status_produktu', '')} | **Kategoria:** {p1.get('kategoria', '')}")
+                        md_lines.append(f"- **Wskazania wprost:** " + ", ".join([w.get('nazwa', '') for w in d1.get('wskazania_i_zastosowania', []) if isinstance(w, dict)]))
+                        md_lines.append("")
+                    
+                    if "podsumowanie" in d2:
+                        p2 = d2["podsumowanie"]
+                        md_lines.append("### 🎯 Analiza Rozszerzona (P2)")
+                        md_lines.append(f"- **Wniosek:** {p2.get('najwazniejszy_wniosek', '')}")
+                        md_lines.append(f"- **Szansa contentowa:** {d2.get('profil_strategiczny_produktu', {}).get('najwieksza_szansa_contentowa', '')}")
+                        md_lines.append(f"- **Ryzyko:** {p2.get('najwieksze_ryzyko', '')}")
+                        md_lines.append("")
+                        
+                    md_lines.append("### 🔍 Frazy SEO (P3 + P4)")
+                    md_lines.append(f"Wygenerowano łącznie **{len(combined_phrases)}** unikalnych seed keywords.")
+                    md_lines.append(f"Przykładowe 10 fraz: {', '.join(combined_phrases[:10])}...")
+                    md_lines.append("")
+
+                    md_lines.append("### 📦 Pełne JSONy na dole rozwijanej sekcji")
+                    
+                    analysis_text = "\n".join(md_lines)
+                        
+                    return {
+                        "url": url,
+                        "analysis": analysis_text,
+                        "seed_keywords": combined_phrases,
+                        "json1": d1,
+                        "json2": d2,
+                        "json3": d3,
+                        "json4": d4,
+                        "products_context": r5,
+                        "raw_content": content_clipped
+                    }
+                else:
+                    st.warning(f"Brak zawartości do analizy dla {url}")
+                    return None
+            except Exception as e:
+                st.error(f"Błąd analizy {url}: {e}")
+                return None
+            finally:
+                if my_bar:
+                    progress_value = min(1.0, (idx + 1) / total)
+                    my_bar.progress(progress_value, text=f"Przeanalizowano {idx+1} z {total} produktów.")
+
     if st.button("Rozpocznij Kaskadę 5 Promptów", type="primary"):
         if not openai_api_key:
             st.error("Wymagany klucz API OpenAI.")
@@ -824,157 +980,9 @@ Napisz krótkie, decyzyjne podsumowanie:
             client = openai.OpenAI(api_key=openai_api_key)
             
             for idx, item in enumerate(items_to_analyze):
-                url = item["url"]
-                content = item["content"]
-                
-                try:
-                    if content is None:
-                        headers = {
-                            "Accept": "application/json",
-                            "X-Retain-Images": "none"
-                        }
-                        if st.session_state.get("jina_api_key"):
-                            headers["Authorization"] = f"Bearer {st.session_state.jina_api_key}"
-                        if scrape_mode == "Pomiń cache (X-No-Cache)":
-                            headers["X-No-Cache"] = "true"
-                        if css_include:
-                            headers["X-Target-Selector"] = css_include
-                        
-                        jina_url = f"https://r.jina.ai/{url}"
-                        response = requests.get(jina_url, headers=headers)
-                        if response.status_code == 200:
-                            content = response.json().get('data', {}).get('content', response.text)
-                        else:
-                            st.error(f"Błąd pobierania strony {url}: {response.status_code}")
-                            continue
-                        
-                    if content:
-                        content_clipped = content[:8000]
-                        
-                        from utils.helpers import track_usage
-                        
-                        # --- PROMPT 1 ---
-                        prompt_1 = step2_user_1.replace("{url}", url).replace("{content}", content_clipped)
-                        call_1_kwargs = {"model": params_1["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_1}, {"role": "user", "content": prompt_1}]}
-                        if "temperature" in params_1: call_1_kwargs["temperature"] = params_1["temperature"]
-                        if "max_tokens" in params_1:
-                                if any(m in params_1["model"] for m in ["gpt-5", "o1", "o3"]): call_1_kwargs["max_completion_tokens"] = params_1["max_tokens"]
-                                else: call_1_kwargs["max_tokens"] = params_1["max_tokens"]
-                        if "reasoning_effort" in params_1: call_1_kwargs["reasoning_effort"] = params_1["reasoning_effort"]
-                        resp1 = client.chat.completions.create(**call_1_kwargs)
-                        r1 = resp1.choices[0].message.content
-                        if resp1.usage: track_usage(params_1["model"], resp1.usage.prompt_tokens, resp1.usage.completion_tokens)
-                        
-                        # --- PROMPT 2 ---
-                        prompt_2 = step2_user_2.replace("{product_facts_json}", r1)
-                        call_2_kwargs = {"model": params_2["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_2}, {"role": "user", "content": prompt_2}]}
-                        if "temperature" in params_2: call_2_kwargs["temperature"] = params_2["temperature"]
-                        if "max_tokens" in params_2:
-                                if any(m in params_2["model"] for m in ["gpt-5", "o1", "o3"]): call_2_kwargs["max_completion_tokens"] = params_2["max_tokens"]
-                                else: call_2_kwargs["max_tokens"] = params_2["max_tokens"]
-                        if "reasoning_effort" in params_2: call_2_kwargs["reasoning_effort"] = params_2["reasoning_effort"]
-                        resp2 = client.chat.completions.create(**call_2_kwargs)
-                        r2 = resp2.choices[0].message.content
-                        if resp2.usage: track_usage(params_2["model"], resp2.usage.prompt_tokens, resp2.usage.completion_tokens)
-                        
-                        # --- PROMPT 3 ---
-                        prompt_3 = step2_user_3.replace("{product_facts_json}", r1).replace("{max_keywords}", "30")
-                        call_3_kwargs = {"model": params_3["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_3}, {"role": "user", "content": prompt_3}]}
-                        if "temperature" in params_3: call_3_kwargs["temperature"] = params_3["temperature"]
-                        if "max_tokens" in params_3:
-                                if any(m in params_3["model"] for m in ["gpt-5", "o1", "o3"]): call_3_kwargs["max_completion_tokens"] = params_3["max_tokens"]
-                                else: call_3_kwargs["max_tokens"] = params_3["max_tokens"]
-                        if "reasoning_effort" in params_3: call_3_kwargs["reasoning_effort"] = params_3["reasoning_effort"]
-                        resp3 = client.chat.completions.create(**call_3_kwargs)
-                        r3 = resp3.choices[0].message.content
-                        if resp3.usage: track_usage(params_3["model"], resp3.usage.prompt_tokens, resp3.usage.completion_tokens)
-                        
-                        # --- PROMPT 4 ---
-                        prompt_4 = step2_user_4.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2).replace("{max_keywords}", "50")
-                        call_4_kwargs = {"model": params_4["model"], "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": step2_sys_4}, {"role": "user", "content": prompt_4}]}
-                        if "temperature" in params_4: call_4_kwargs["temperature"] = params_4["temperature"]
-                        if "max_tokens" in params_4:
-                                if any(m in params_4["model"] for m in ["gpt-5", "o1", "o3"]): call_4_kwargs["max_completion_tokens"] = params_4["max_tokens"]
-                                else: call_4_kwargs["max_tokens"] = params_4["max_tokens"]
-                        if "reasoning_effort" in params_4: call_4_kwargs["reasoning_effort"] = params_4["reasoning_effort"]
-                        resp4 = client.chat.completions.create(**call_4_kwargs)
-                        r4 = resp4.choices[0].message.content
-                        if resp4.usage: track_usage(params_4["model"], resp4.usage.prompt_tokens, resp4.usage.completion_tokens)
-                        
-                        # --- PROMPT 5 ---
-                        prompt_5 = step2_user_5.replace("{product_facts_json}", r1).replace("{expanded_product_analysis_json}", r2)
-                        call_5_kwargs = {"model": params_5["model"], "messages": [{"role": "system", "content": step2_sys_5}, {"role": "user", "content": prompt_5}]}
-                        if "temperature" in params_5: call_5_kwargs["temperature"] = params_5["temperature"]
-                        if "max_tokens" in params_5:
-                                if any(m in params_5["model"] for m in ["gpt-5", "o1", "o3"]): call_5_kwargs["max_completion_tokens"] = params_5["max_tokens"]
-                                else: call_5_kwargs["max_tokens"] = params_5["max_tokens"]
-                        if "reasoning_effort" in params_5: call_5_kwargs["reasoning_effort"] = params_5["reasoning_effort"]
-                        resp5 = client.chat.completions.create(**call_5_kwargs)
-                        r5 = resp5.choices[0].message.content
-                        if resp5.usage: track_usage(params_5["model"], resp5.usage.prompt_tokens, resp5.usage.completion_tokens)
-                        
-                        d1, d2, d3, d4 = {}, {}, {}, {}
-                        from utils.helpers import clean_json
-                        
-                        try: d1 = json.loads(clean_json(r1))
-                        except Exception: st.warning("Błąd parsowania JSON dla P1")
-                        
-                        try: d2 = json.loads(clean_json(r2))
-                        except Exception: st.warning("Błąd parsowania JSON dla P2")
-                        
-                        try: d3 = json.loads(clean_json(r3))
-                        except Exception: st.warning("Błąd parsowania JSON dla P3")
-                        
-                        try: d4 = json.loads(clean_json(r4))
-                        except Exception: st.warning("Błąd parsowania JSON dla P4")
-                        
-                        phrases_3 = [str(x).strip().lower() for x in d3.get("seed_keywords", [])] if d3 else []
-                        phrases_4 = [str(x).strip().lower() for x in d4.get("seed_keywords", [])] if d4 else []
-                        combined_phrases = list(dict.fromkeys(phrases_3 + phrases_4))
-                        
-                        md_lines = []
-                        if "produkt" in d1:
-                            md_lines.append("### 🏷 Fakty wyodrębnione z treści (P1)")
-                            p1 = d1["produkt"]
-                            md_lines.append(f"- **Nazwa:** {p1.get('nazwa', '')} | **Status:** {p1.get('status_produktu', '')} | **Kategoria:** {p1.get('kategoria', '')}")
-                            md_lines.append(f"- **Wskazania wprost:** " + ", ".join([w.get('nazwa', '') for w in d1.get('wskazania_i_zastosowania', []) if isinstance(w, dict)]))
-                            md_lines.append("")
-                        
-                        if "podsumowanie" in d2:
-                            p2 = d2["podsumowanie"]
-                            md_lines.append("### 🎯 Analiza Rozszerzona (P2)")
-                            md_lines.append(f"- **Wniosek:** {p2.get('najwazniejszy_wniosek', '')}")
-                            md_lines.append(f"- **Szansa contentowa:** {d2.get('profil_strategiczny_produktu', {}).get('najwieksza_szansa_contentowa', '')}")
-                            md_lines.append(f"- **Ryzyko:** {p2.get('najwieksze_ryzyko', '')}")
-                            md_lines.append("")
-                            
-                        md_lines.append("### 🔍 Frazy SEO (P3 + P4)")
-                        md_lines.append(f"Wygenerowano łącznie **{len(combined_phrases)}** unikalnych seed keywords.")
-                        md_lines.append(f"Przykładowe 10 fraz: {', '.join(combined_phrases[:10])}...")
-                        md_lines.append("")
-
-                        md_lines.append("### 📦 Pełne JSONy na dole rozwijanej sekcji")
-                        
-                        analysis_text = "\n".join(md_lines)
-                            
-                        product_analysis.append({
-                            "url": url,
-                            "analysis": analysis_text,
-                            "seed_keywords": combined_phrases,
-                            "json1": d1 if 'd1' in locals() else {},
-                            "json2": d2 if 'd2' in locals() else {},
-                            "json3": d3 if 'd3' in locals() else {},
-                            "json4": d4 if 'd4' in locals() else {},
-                            "products_context": r5 if 'r5' in locals() else "",
-                            "raw_content": content_clipped if 'content_clipped' in locals() else ""
-                        })
-                    else:
-                        st.warning(f"Brak zawartości do analizy dla {url}")
-                except Exception as e:
-                    st.error(f"Błąd analizy {url}: {e}")
-                    
-                progress_value = min(1.0, (idx + 1) / len(items_to_analyze))
-                my_bar.progress(progress_value, text=f"Przeanalizowano {idx+1} z {len(items_to_analyze)} produktów.")
+                res = analyze_single_product(item["url"], item["content"], client, idx, len(items_to_analyze), my_bar)
+                if res:
+                    product_analysis.append(res)
                 
             st.session_state.product_analysis = product_analysis
             st.success("Kaskada zakończona!")
@@ -1051,3 +1059,37 @@ Napisz krótkie, decyzyjne podsumowanie:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary"
         )
+        
+        st.markdown("---")
+        st.subheader("🔄 Regeneracja pojedynczego produktu")
+        st.info("Jeśli z jakiegoś powodu pobieranie lub analiza dla jednego z produktów się nie udała (lub chcesz ją powtórzyć), wybierz produkt z listy i kliknij przycisk.")
+        
+        product_urls = [item["url"] for item in st.session_state.product_analysis]
+        selected_url_to_regen = st.selectbox("Wybierz URL do ponownej analizy:", product_urls)
+        
+        if st.button("Ponowna analiza wybranego produktu"):
+            if not openai_api_key:
+                st.error("Wymagany klucz API OpenAI.")
+            else:
+                # Find the content from the original input if possible, or leave it None to trigger download
+                # We can grab it from manual_df if it was manual, else None
+                original_content = None
+                if input_mode == "Wpisz ręcznie opisy":
+                    for idx, row in manual_df.iterrows():
+                        if str(row.get("URL/Nazwa", "")).strip() == selected_url_to_regen:
+                            original_content = str(row.get("Opis", "")).strip()
+                            break
+                            
+                client = openai.OpenAI(api_key=openai_api_key)
+                progress_text = f"Ponowna analiza dla {selected_url_to_regen}..."
+                my_bar = st.progress(0, text=progress_text)
+                
+                res = analyze_single_product(selected_url_to_regen, original_content, client, 0, 1, my_bar)
+                if res:
+                    # Update the specific item
+                    for i, item in enumerate(st.session_state.product_analysis):
+                        if item["url"] == selected_url_to_regen:
+                            st.session_state.product_analysis[i] = res
+                            break
+                    st.success("Ponowna analiza zakończona pomyślnie! Odśwież widok, aby zobaczyć zmiany.")
+                    st.rerun()

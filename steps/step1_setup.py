@@ -1,9 +1,11 @@
 import streamlit as st
 import pandas as pd
-from utils.helpers import normalize_url, to_excel
+from utils.helpers import normalize_url, to_excel, render_wow_metrics
 
 def render():
     st.header("Krok 1: Setup i Wgranie Danych Domeny")
+    render_wow_metrics()
+    
     domain = st.text_input("Analizowana domena (np. linomag.pl):", value="linomag.pl")
     
     col1, col2 = st.columns(2)
@@ -148,7 +150,9 @@ def render():
                         df_unpivoted.loc[mask_senuto, "Traffic"] = df_unpivoted.loc[mask_senuto, "Traffic"].round().astype("Int64")
                     
                     st.session_state.df_unpivoted = df_unpivoted
-                    
+                    if "global_stats" in st.session_state:
+                        st.session_state.global_stats["przeanalizowane_frazy"] = len(df_unpivoted)
+                        
                     st.success("Pliki zostały skonsolidowane! Wyniki zebrane po adresie URL.")
                     
                     tab1, tab2 = st.tabs(["Widok Pogrupowany (URL)", "Widok Rozszerzony (Frazy)"])

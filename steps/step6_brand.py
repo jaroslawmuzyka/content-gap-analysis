@@ -4,8 +4,11 @@ import openai
 import json
 import os
 
+from utils.helpers import render_wow_metrics
+
 def render(openai_api_key):
     st.header("Krok 5: Analiza Brandu (2 Etapy)")
+    render_wow_metrics()
     
     # 1. Sprawdzanie czy istnieje plik awaryjny JSON
     if os.path.exists("temp_brand_results_backup.json"):
@@ -541,6 +544,8 @@ Zwróć wyłącznie poprawny JSON w strukturze:
             })
         if cluster_data:
             sheets["6. Brand Klastry"] = pd.DataFrame(cluster_data)
+            if "global_stats" in st.session_state:
+                st.session_state.global_stats["wygenerowane_pomysly"] += len(cluster_data)
             
         if "brand_analysis_results" in st.session_state:
             frazy_data = []

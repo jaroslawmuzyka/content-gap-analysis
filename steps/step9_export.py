@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
-from utils.helpers import to_excel_multi
+from utils.helpers import to_excel_multi, render_wow_metrics
 
 def render():
     st.header("Krok 9: Globalny Raport (Eksport)")
+    render_wow_metrics()
     st.markdown("Tutaj możesz wyeksportować wszystkie dotychczas zebrane i wygenerowane dane w postaci jednego, eleganckiego pliku Excel z wieloma zakładkami (Sheetami). Plik zostanie automatycznie sformatowany.")
     
     sheets = {}
@@ -97,14 +98,37 @@ def render():
     with st.spinner("Generowanie i formatowanie pliku Excel..."):
         try:
             excel_data = to_excel_multi(sheets)
+            from utils.report_generator import generate_html_report, generate_docx_report
+            html_data = generate_html_report(sheets, st.session_state.get("global_stats", {}))
+            docx_data = generate_docx_report(sheets, st.session_state.get("global_stats", {}))
             
-            st.download_button(
-                label="📥 Pobierz Globalny Raport (XLSX)",
-                data=excel_data,
-                file_name='content_gap_globalny_raport.xlsx',
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                type="primary",
-                use_container_width=True
-            )
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.download_button(
+                    label="📥 Pobierz Globalny Raport (XLSX)",
+                    data=excel_data,
+                    file_name='content_gap_globalny_raport.xlsx',
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    type="primary",
+                    use_container_width=True
+                )
+            with c2:
+                st.download_button(
+                    label="📥 Pobierz Raport (HTML)",
+                    data=html_data,
+                    file_name='content_gap_raport_prezentacja.html',
+                    mime='text/html',
+                    type="secondary",
+                    use_container_width=True
+                )
+            with c3:
+                st.download_button(
+                    label="📥 Pobierz Raport Klient (DOCX)",
+                    data=docx_data,
+                    file_name='content_gap_raport_klient.docx',
+                    mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    type="secondary",
+                    use_container_width=True
+                )
         except Exception as e:
             st.error(f"Wystąpił błąd podczas generowania pliku Excel: {e}")

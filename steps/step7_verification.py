@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 import openai
 import os
-from utils.helpers import to_excel
+from utils.helpers import to_excel, render_wow_metrics
 
 def render(openai_api_key):
     st.header("Krok 7: Weryfikacja Istniejących Treści")
+    render_wow_metrics()
     
     if "df_gap_results" not in st.session_state or "my_pages_df" not in st.session_state:
         st.warning("Musisz najpierw ukończyć Krok 4 (aby wygenerować pomysły Gap) oraz Krok 5 (aby wgrać własne URLe i Title).")
@@ -303,6 +304,8 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                         df_final_verified = df_newly_verified
                         
                     st.session_state.df_verified_results = df_final_verified
+                    if "global_stats" in st.session_state:
+                        st.session_state.global_stats["content_gaps"] = len(df_final_verified)
                     if os.path.exists("temp_verification_results_backup.xlsx"):
                         os.remove("temp_verification_results_backup.xlsx")
                     st.success("Weryfikacja zakończona pomyślnie!")

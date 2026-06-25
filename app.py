@@ -8,6 +8,15 @@ st.set_page_config(page_title="Content Gap Analyzer", layout="wide")
 if "step" not in st.session_state:
     st.session_state.step = 1
 
+if "global_stats" not in st.session_state:
+    st.session_state.global_stats = {
+        "przeanalizowane_frazy": 0,
+        "strony_konkurencji": 0,
+        "strony_wlasne": 0,
+        "wygenerowane_pomysly": 0,
+        "content_gaps": 0
+    }
+
 # Pasek boczny na konfigurację i nawigację
 with st.sidebar:
     openai_api_key = st.secrets.get("OPENAI_API_KEY", "")
@@ -38,6 +47,7 @@ with st.sidebar:
     
     st.markdown("---")
     
+    step0 = st.button("Krok 0: Import Sesji (Masowy)", use_container_width=True)
     step1 = st.button("Krok 1: Wgranie Danych Domeny", use_container_width=True)
     step2 = st.button("Krok 2: Analiza Produktów (Jina + AI)", use_container_width=True)
     step3 = st.button("Krok 3: Generowanie Fraz", use_container_width=True)
@@ -48,6 +58,7 @@ with st.sidebar:
     step8 = st.button("Krok 8: Audyt Contentu (AI Readiness)", use_container_width=True)
     step9 = st.button("Krok 9: Globalny Raport (Eksport)", use_container_width=True)
     
+    if step0: st.session_state.step = 0
     if step1: st.session_state.step = 1
     if step2: st.session_state.step = 2
     if step3: st.session_state.step = 3
@@ -60,7 +71,10 @@ with st.sidebar:
 
 st.title("📈 Content Gap Analyzer")
 
-if st.session_state.step == 1:
+if st.session_state.step == 0:
+    from steps import step0_import
+    step0_import.render()
+elif st.session_state.step == 1:
     from steps import step1_setup
     step1_setup.render()
 elif st.session_state.step == 2:

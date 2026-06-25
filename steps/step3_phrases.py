@@ -1,7 +1,9 @@
 import streamlit as st
+from utils.helpers import render_wow_metrics
 
 def render():
     st.header("Krok 3: Ostateczna Lista Fraz do Ahrefs")
+    render_wow_metrics()
     
     if "product_analysis" not in st.session_state or "df_domain" not in st.session_state:
         st.info("Wykonaj najpierw Krok 1 (wgranie danych domeny) i Krok 2 (analiza produktów).")

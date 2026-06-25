@@ -4,9 +4,11 @@ import requests
 import openai
 from utils.helpers import to_excel
 import json
+from utils.helpers import to_excel, render_wow_metrics
 
 def render(openai_api_key):
     st.header("Krok 8: Audyt Contentu (AI Readiness)")
+    render_wow_metrics()
     st.markdown("Wgraj plik (np. XLSX lub CSV) z listą adresów URL do zaudytowania. Skrypt wejdzie na każdą podstronę, pobierze jej zawartość i oceni ją pod kątem 12 rygorystycznych kryteriów.")
     
     audit_file = st.file_uploader("Wgraj plik z URLami do audytu (kolumny: URL, opcjonalnie Keyword, Title, H1)", type=['csv', 'xlsx', 'xls'])

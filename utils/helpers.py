@@ -41,6 +41,21 @@ def track_usage(model_name, prompt_tokens, completion_tokens):
     st.session_state.total_tokens["prompt"] += prompt_tokens
     st.session_state.total_tokens["completion"] += completion_tokens
 
+def render_wow_metrics():
+    if "global_stats" not in st.session_state:
+        return
+        
+    st.markdown("### 📊 Aktualne Statystyki Analizy (WOW Metrics)")
+    stats = st.session_state.global_stats
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Frazy", stats.get("przeanalizowane_frazy", 0))
+    col2.metric("Strony Konkurencji", stats.get("strony_konkurencji", 0))
+    col3.metric("Strony Własne", stats.get("strony_wlasne", 0))
+    col4.metric("Klastry/Pomysły", stats.get("wygenerowane_pomysly", 0))
+    col5.metric("Zidentyfikowane Luki", stats.get("content_gaps", 0))
+    st.markdown("---")
+
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 

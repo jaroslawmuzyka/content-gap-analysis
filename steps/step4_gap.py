@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 import openai
 import os
-from utils.helpers import to_excel
+from utils.helpers import to_excel, render_wow_metrics
 
 def render(openai_api_key):
     st.header("Krok 4: Mapowanie Content Gap (Non-Brand)")
+    render_wow_metrics()
     
     # 1. Sprawdzanie czy istnieje plik awaryjny
     if os.path.exists("temp_gap_results_backup.xlsx"):
@@ -299,6 +300,8 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                     if results:
                         df_results = pd.DataFrame(results)
                         st.session_state.df_gap_results = df_results
+                        if "global_stats" in st.session_state:
+                            st.session_state.global_stats["strony_konkurencji"] = len(df_results)
                         st.success("Analiza zakończona!")
                         
                         # Usuwamy plik backupu po udanej analizie
