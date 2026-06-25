@@ -154,25 +154,27 @@ def render():
                         st.session_state.global_stats["przeanalizowane_frazy"] = len(df_unpivoted)
                         
                     st.success("Pliki zostały skonsolidowane! Wyniki zebrane po adresie URL.")
-                    
-                    tab1, tab2 = st.tabs(["Widok Pogrupowany (URL)", "Widok Rozszerzony (Frazy)"])
-                    
-                    with tab1:
-                        st.dataframe(df_combined.head(100))
-                        st.download_button(
-                            label="📥 Pobierz Widok Pogrupowany (XLSX)",
-                            data=to_excel(df_combined),
-                            file_name='skonsolidowane_frazy_grupy.xlsx',
-                            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                        )
-                        
-                    with tab2:
-                        st.dataframe(df_unpivoted.head(100))
-                        st.download_button(
-                            label="📥 Pobierz Widok Rozszerzony (XLSX)",
-                            data=to_excel(df_unpivoted),
-                            file_name='skonsolidowane_frazy_rozszerzone.xlsx',
-                            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                        )
         else:
             st.warning("Proszę wgrać oba pliki (Ahrefs i Senuto).")
+            
+    if "df_domain" in st.session_state and "df_unpivoted" in st.session_state:
+        st.markdown("### Aktualnie załadowane dane (Podgląd)")
+        tab1, tab2 = st.tabs(["Widok Pogrupowany (URL)", "Widok Rozszerzony (Frazy)"])
+        
+        with tab1:
+            st.dataframe(st.session_state.df_domain.head(100))
+            st.download_button(
+                label="📥 Pobierz Widok Pogrupowany (XLSX)",
+                data=to_excel(st.session_state.df_domain),
+                file_name='skonsolidowane_frazy_grupy.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            
+        with tab2:
+            st.dataframe(st.session_state.df_unpivoted.head(100))
+            st.download_button(
+                label="📥 Pobierz Widok Rozszerzony (XLSX)",
+                data=to_excel(st.session_state.df_unpivoted),
+                file_name='skonsolidowane_frazy_rozszerzone.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )

@@ -26,3 +26,8 @@ def render():
                 st.success("Plik zapisany w pamięci do użycia w kolejnych krokach.")
         except Exception as e:
             st.error(f"Błąd podczas wczytywania pliku: {e}")
+
+    if "my_pages_df" in st.session_state:
+        st.markdown("### Aktualnie załadowane strony własne (Podgląd)")
+        st.write(f"Załadowano {len(st.session_state.my_pages_df)} wierszy.")
+        st.dataframe(st.session_state.my_pages_df.head(100))

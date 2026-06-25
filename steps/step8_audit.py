@@ -241,14 +241,16 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 df_audited = pd.DataFrame(results_audit)
                 st.session_state.df_audited = df_audited
                 st.success("Audyt zakończony!")
-                st.dataframe(df_audited)
                 
-                st.download_button(
-                    label="📥 Pobierz Audyt Contentu (XLSX)",
-                    data=to_excel(df_audited),
-                    file_name='audyt_contentu_ai.xlsx',
-                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                )
+    if "df_audited" in st.session_state:
+        st.markdown("### Aktualnie załadowane dane (Podgląd)")
+        st.dataframe(st.session_state.df_audited)
+        st.download_button(
+            label="📥 Pobierz Audyt Contentu (XLSX)",
+            data=to_excel(st.session_state.df_audited),
+            file_name='audyt_contentu_ai.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
             except Exception as e:
                 st.error(f"Wystąpił błąd ogólny: {e}")
         else:

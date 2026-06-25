@@ -594,3 +594,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                     mime='application/json',
                     type="secondary"
                 )
+
+    if "df_brand_clusters" in st.session_state and "brand_clusters" not in st.session_state:
+        st.markdown("### Aktualnie załadowane dane z pliku importu (Klastry Brandowe)")
+        st.dataframe(st.session_state.df_brand_clusters)

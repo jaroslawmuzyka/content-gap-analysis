@@ -309,10 +309,13 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                     if os.path.exists("temp_verification_results_backup.xlsx"):
                         os.remove("temp_verification_results_backup.xlsx")
                     st.success("Weryfikacja zakończona pomyślnie!")
-                
-                st.download_button(
-                    label="📥 Pobierz zweryfikowane pomysły (XLSX)",
-                    data=to_excel(st.session_state.df_verified_results),
-                    file_name='zweryfikowane_pomysly.xlsx',
-                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                )
+                    
+    if "df_verified_results" in st.session_state:
+        st.markdown("### Aktualnie załadowane dane (Podgląd)")
+        st.dataframe(st.session_state.df_verified_results)
+        st.download_button(
+            label="📥 Pobierz zweryfikowane pomysły (XLSX)",
+            data=to_excel(st.session_state.df_verified_results),
+            file_name='zweryfikowane_pomysly.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )

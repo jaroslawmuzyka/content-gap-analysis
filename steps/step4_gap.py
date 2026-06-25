@@ -307,25 +307,28 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                         # Usuwamy plik backupu po udanej analizie
                         if os.path.exists("temp_gap_results_backup.xlsx"):
                             os.remove("temp_gap_results_backup.xlsx")
-                        
-                        df_accepted = df_results[df_results['AI Verdict'] == "PASUJE"]
-                        df_rejected = df_results[df_results['AI Verdict'] != "PASUJE"]
-                        
-                        tab1, tab2 = st.tabs(["✅ Pasuje", "❌ Nie pasuje"])
-                        with tab1:
-                            st.write(f"Pasuje: {len(df_accepted)}")
-                            st.dataframe(df_accepted)
-                        with tab2:
-                            st.write(f"Nie pasuje: {len(df_rejected)}")
-                            st.dataframe(df_rejected)
-                        
-                        st.download_button(
-                            label="📥 Pobierz WSZYSTKIE wyniki Gap (XLSX)",
-                            data=to_excel(df_results),
-                            file_name='content_gap_wyniki_wszystkie.xlsx',
-                            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                        )
                     else:
                         st.warning("Żaden z adresów nie został przeanalizowany.")
         else:
-            st.warning("Upewnij się, że wgrałeś plik oraz że w Kroku 2 zostały przeanalizowane produkty.")
+            st.warning("Wymagane dane z Kroku 1 oraz z Kroku 2. Proszę się upewnić, że poprzednie kroki zostały wykonane.")
+            
+    if "df_gap_results" in st.session_state:
+        st.markdown("### Aktualnie załadowane dane (Podgląd)")
+        df_results = st.session_state.df_gap_results
+        df_accepted = df_results[df_results['AI Verdict'] == "PASUJE"]
+        df_rejected = df_results[df_results['AI Verdict'] != "PASUJE"]
+        
+        tab1, tab2 = st.tabs(["✅ Pasuje", "❌ Nie pasuje"])
+        with tab1:
+            st.write(f"Pasuje: {len(df_accepted)}")
+            st.dataframe(df_accepted)
+        with tab2:
+            st.write(f"Nie pasuje: {len(df_rejected)}")
+            st.dataframe(df_rejected)
+        
+        st.download_button(
+            label="📥 Pobierz WSZYSTKIE wyniki Gap (XLSX)",
+            data=to_excel(df_results),
+            file_name='content_gap_wyniki_wszystkie.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
