@@ -341,7 +341,6 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         recovered_files = st.file_uploader("Wgraj uratowane pliki 'temp_brand_results_backup.json'", type=['json'], accept_multiple_files=True, key="recovered_brand_json")
         recovered_keywords = []
         if recovered_files:
-            import json
             for f in recovered_files:
                 try:
                     data = json.load(f)
