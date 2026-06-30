@@ -37,16 +37,22 @@ def render(openai_api_key):
     
     if mode == "Wgraj gotowy plik JSON z wynikami (ominięcie Etapu 1)":
         st.info("Wgraj plik JSON zawierający przetworzone wyniki Etapu 1 (z tablicą obiektów). System natychmiast załaduje te dane i pozwoli przejść od razu do szybkiego Etapu 2 (Klastrowanie).")
-        ready_file = st.file_uploader("Wgraj gotowy plik JSON", type=['json'], key="ready_file_brand")
-        if ready_file:
+        ready_files = st.file_uploader("Wgraj gotowe pliki JSON", type=['json'], accept_multiple_files=True, key="ready_file_brand")
+        if ready_files:
             try:
-                data = json.load(ready_file)
-                st.success(f"Pomyślnie wczytano plik z {len(data)} przeanalizowanymi frazami!")
-                if st.button("Zapisz te wyniki i przejdź do Etapu 2", type="primary"):
-                    st.session_state.brand_analysis_results = data
-                    st.success("Zapisano! Przejdź niżej i kliknij 'Rozpocznij Analizę Brandu', aby wykonać tylko Etap 2.")
+                aggregated_data = []
+                for ready_file in ready_files:
+                    data = json.load(ready_file)
+                    if isinstance(data, list):
+                        aggregated_data.extend(data)
+                
+                if aggregated_data:
+                    st.success(f"Pomyślnie wczytano łącznie {len(aggregated_data)} przeanalizowanych fraz z {len(ready_files)} plików!")
+                    if st.button("Zapisz te wyniki i przejdź do Etapu 2", type="primary"):
+                        st.session_state.brand_analysis_results = aggregated_data
+                        st.success("Zapisano! Przejdź niżej i kliknij 'Rozpocznij Analizę Brandu', aby wykonać tylko Etap 2.")
             except Exception as e:
-                st.error(f"Błąd podczas wczytywania gotowego pliku: {e}")
+                st.error(f"Błąd podczas wczytywania plików: {e}")
         
     st.markdown("---")
     st.markdown("Wgraj pliki zawierające zapytania brandowe (np. z Ahrefs i Senuto).")
