@@ -113,8 +113,14 @@ def clean_json(text):
         text = text[:-3]
     text = text.strip()
     
-    # Próba prostego zamknięcia urwanego JSON-a, jeśli brakuje nawiasów
     import json
+    import re
+    
+    # Usuwanie niepotrzebnych przecinków przed klamrami (trailing commas)
+    # Zastępujemy sekwencję: przecinek -> dowolne białe znaki -> nawias zamykający
+    # samym nawiasem zamykającym. To powszechny błąd LLM.
+    text = re.sub(r',\s*([\]}])', r'\1', text)
+
     try:
         json.loads(text)
         return text
@@ -149,6 +155,8 @@ def clean_json(text):
             elif bracket == '[':
                 fixed += ']'
                 
+        # Jeszcze raz usuwamy przecinki na końcu
+        fixed = re.sub(r',\s*([\]}])', r'\1', fixed)
         return fixed
 def get_step2_excel_sheets(product_analysis_list):
     p1_fakty_data = []

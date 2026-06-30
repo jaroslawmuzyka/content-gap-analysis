@@ -268,14 +268,15 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                                     results.append(row_result)
                                 break # Wyjście z pętli retry przy sukcesie
                             except Exception as e:
-                                if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
-                                    if attempt < max_retries - 1:
+                                if attempt < max_retries - 1:
+                                    if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
                                         my_bar.progress(min(1.0, i / len(df_gap)), text=f"Analiza: {i}/{len(df_gap)} wierszy. (Rate Limit - czekam 10s...)")
                                         time.sleep(10)
                                     else:
-                                        st.warning(f"Błąd Rate Limit przy paczce {i}-{i+batch_size} po 3 próbach: {e}")
+                                        st.warning(f"Błąd (próba {attempt+1}/{max_retries}) dla paczki {i}-{i+batch_size}: {e}. Ponawiam...")
+                                        time.sleep(2)
                                 else:
-                                    # Inny błąd JSON lub API, dla bezpieczeństwa dodajemy puste dla reszty paczki i przerywamy retry
+                                    # Ostateczny błąd
                                     for idx, row in batch.iterrows():
                                         row_result = row.to_dict()
                                         row_result.update({

@@ -273,14 +273,15 @@ Zwróć wyłącznie poprawny JSON o następującej strukturze:
                             break 
                             
                         except Exception as e:
-                            if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
-                                if attempt < max_retries - 1:
+                            if attempt < max_retries - 1:
+                                if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
                                     my_bar.progress(min(1.0, i / len(df_accepted_to_process)), text=f"Weryfikacja: {i}/{len(df_accepted_to_process)}. (Rate Limit - 10s...)")
                                     time.sleep(10)
                                 else:
-                                    st.warning(f"Rate Limit przy paczce {i}-{i+batch_size}: {e}")
+                                    st.warning(f"Błąd (próba {attempt+1}/{max_retries}) dla paczki {i}-{i+batch_size}: {e}. Ponawiam...")
+                                    time.sleep(2)
                             else:
-                                st.warning(f"Błąd przy paczce {i}-{i+batch_size}: {e}")
+                                st.warning(f"Ostateczny błąd przy paczce {i}-{i+batch_size}: {e}")
                                 break
                             
                     progress_value = min(1.0, (i + len(batch)) / len(df_accepted_to_process))

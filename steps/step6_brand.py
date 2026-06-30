@@ -408,18 +408,20 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                                 analyzed_keywords.append(res)
                                 
                         except Exception as je:
-                            st.warning(f"Błąd parsowania JSON dla paczki {i}-{i+batch_size}: {je}")
+                            raise Exception(f"Błąd parsowania JSON: {je}")
+                            
                         break # Success, exit retry loop
                         
                     except Exception as e:
-                        if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
-                            if attempt < max_retries - 1:
+                        if attempt < max_retries - 1:
+                            if "rate" in str(e).lower() or "429" in str(e) or "limit" in str(e).lower():
                                 my_bar_1.progress(min(1.0, i / len(unique_brand_data)), text=f"Analiza: {i}/{len(unique_brand_data)} fraz. (Rate Limit - czekam 10s...)")
                                 time.sleep(10)
                             else:
-                                st.warning(f"Błąd Rate Limit przy paczce {i}-{i+batch_size} po 3 próbach: {e}")
+                                st.warning(f"Błąd (próba {attempt+1}/{max_retries}) dla paczki {i}-{i+batch_size}: {e}. Ponawiam...")
+                                time.sleep(2)
                         else:
-                            st.warning(f"Błąd przy paczce {i}-{i+batch_size}: {e}")
+                            st.error(f"Pominięto paczkę {i}-{i+batch_size} po {max_retries} próbach. Ostatni błąd: {e}")
                             break
                     
                 progress_value = min(1.0, (i + len(batch)) / len(unique_brand_data))
