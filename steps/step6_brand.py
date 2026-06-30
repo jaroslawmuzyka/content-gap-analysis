@@ -334,26 +334,48 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         
         client = openai.OpenAI(api_key=openai_api_key)
 
+        # Opcja wgrywania częściowych plików z Etapu 1
+        st.markdown("---")
+        st.markdown("### Opcjonalnie: Wznów po błędzie (Etap 1)")
+        st.info("Jeśli proces został przerwany, możesz wgrać uratowane pliki JSON. Aplikacja pominie już przeanalizowane frazy i dokończy resztę.")
+        recovered_files = st.file_uploader("Wgraj uratowane pliki 'temp_brand_results_backup.json'", type=['json'], accept_multiple_files=True, key="recovered_brand_json")
+        recovered_keywords = []
+        if recovered_files:
+            import json
+            for f in recovered_files:
+                try:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        recovered_keywords.extend(data)
+                except Exception as e:
+                    st.error(f"Błąd wczytywania {f.name}: {e}")
+            if recovered_keywords:
+                st.success(f"Pomyślnie odzyskano {len(recovered_keywords)} przetworzonych fraz ze wgranych plików.")
+
         # Etap 1: Analiza pojedynczych fraz (tylko jeśli brak ich w sesji)
         if "brand_analysis_results" not in st.session_state:
             if not brand_data:
                 st.warning("Nie znaleziono poprawnych fraz w plikach.")
                 return
                 
-            # Deduplicate
+            # Deduplicate and filter recovered
             seen = set()
+            recovered_words = {str(k.get("keyword", "")) for k in recovered_keywords if "keyword" in k}
             unique_brand_data = []
             for item in brand_data:
-                if item["keyword"] not in seen:
-                    seen.add(item["keyword"])
+                kw = str(item["keyword"])
+                if kw not in seen and kw not in recovered_words:
+                    seen.add(kw)
                     unique_brand_data.append(item)
                     
-            st.info(f"Znaleziono {len(unique_brand_data)} unikalnych zapytań brandowych. Rozpoczynam Etap 1: Analiza każdej frazy...")
+            st.info(f"Do analizy pozostało {len(unique_brand_data)} nowych zapytań brandowych. Wczytano {len(recovered_keywords)} już zrobionych. Rozpoczynam Etap 1...")
 
-            analyzed_keywords = []
+            analyzed_keywords = list(recovered_keywords)
             my_bar_1 = st.progress(0, text="Analiza fraz w toku...")
             st.markdown("### Podgląd wyników na żywo (Etap 1):")
             table_placeholder = st.empty()
+            if analyzed_keywords:
+                table_placeholder.dataframe(pd.DataFrame(analyzed_keywords))
             
             import time
             batch_size = 10
@@ -424,8 +446,8 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                             st.error(f"Pominięto paczkę {i}-{i+batch_size} po {max_retries} próbach. Ostatni błąd: {e}")
                             break
                     
-                progress_value = min(1.0, (i + len(batch)) / len(unique_brand_data))
-                my_bar_1.progress(progress_value, text=f"Analiza: {i+len(batch)}/{len(unique_brand_data)} fraz.")
+                progress_value = min(1.0, (i + len(batch)) / len(unique_brand_data)) if len(unique_brand_data) > 0 else 1.0
+                my_bar_1.progress(progress_value, text=f"Analiza: {i+len(batch)}/{len(unique_brand_data)} nowych fraz.")
                 
                 if analyzed_keywords:
                     df_current = pd.DataFrame(analyzed_keywords)
