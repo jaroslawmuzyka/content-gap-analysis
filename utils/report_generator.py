@@ -186,7 +186,7 @@ def generate_html_report(sheets_dict, global_stats):
                 for col in display_df.columns:
                     val = str(row[col]) if pd.notnull(row[col]) else ""
                     # Simple color coding for known columns
-                    if col in ["AI Verdict", "Rekomendacja", "Priorytet", "Weryfikacja"]:
+                    if col in ["AI Verdict", "Rekomendacja", "Priorytet", "Status na własnej stronie", "Weryfikacja"]:
                         if "pasuje" in val.lower() or "wysoki" in val.lower() or "dobrze" in val.lower() or "brak_treści" in val.lower():
                             html += f'<td><span class="badge badge-success">{val}</span></td>'
                         elif "nie pasuje" in val.lower() or "niski" in val.lower() or "błąd" in val.lower() or "pokrywa_się" in val.lower():
@@ -229,7 +229,7 @@ def generate_docx_report(sheets_dict, global_stats):
     # Section: Content Gaps
     if "7. Weryfikacja Gap" in sheets_dict and not sheets_dict["7. Weryfikacja Gap"].empty:
         df_ver = sheets_dict["7. Weryfikacja Gap"]
-        gaps = df_ver[df_ver["Weryfikacja"].astype(str).str.contains("BRAK_TRE", case=False, na=False)]
+        gaps = df_ver[df_ver["Status na własnej stronie"].astype(str).str.contains("BRAK_TRE", case=False, na=False)]
         
         doc.add_heading('2. Najważniejsze Luki Treści (Zupełnie nowe tematy do wdrożenia)', level=1)
         doc.add_paragraph(f"Zidentyfikowano {len(gaps)} pomysłów, które nie są obecnie pokryte na Twojej stronie i stanowią doskonałą okazję do wdrożenia.")
@@ -237,9 +237,9 @@ def generate_docx_report(sheets_dict, global_stats):
         # Display top 10
         for idx, row in gaps.head(10).iterrows():
             p = doc.add_paragraph(style='List Bullet')
-            prod = str(row.get("Recommended Product", ""))
-            reason = str(row.get("Reasoning", ""))
-            p.add_run(f"Produkt: {prod}").bold = True
+            prod = str(row.get("Temat Pomysłu", ""))
+            reason = str(row.get("Weryfikacja Uzasadnienie", ""))
+            p.add_run(f"Temat: {prod}").bold = True
             p.add_run(f"\nUzasadnienie: {reason}")
             
     # Section: Brand Clusters
