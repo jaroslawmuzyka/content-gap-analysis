@@ -343,10 +343,14 @@ Zwróć wyłącznie poprawny JSON w strukturze:
                 t = str(row[t_col]).strip() if t_col and pd.notna(row[t_col]) else ""
                 if u:
                     user_pages_context += f"- URL: {u} | Tytuł: {t}\n"
+            
+            if len(user_pages_context) > 400000:
+                st.warning("Ostrzeżenie: Twoja lista własnych stron jest bardzo długa. Obcinam ją do 400k znaków, aby uniknąć błędu przekroczenia tokenów modelu.")
+                user_pages_context = user_pages_context[:400000]
         else:
             user_pages_context += "Brak wgranych własnych stron (Pominięto Krok 5).\n"
             
-        full_context = f"--- PRODUKTY KLIENTA ---\n{products_context}\n\n--- WŁASNE STRONY KLIENTA ---\n{user_pages_context}"
+        full_context = f"--- PRODUKTY KLIENTA ---\n{products_analysis_context}\n\n--- WŁASNE STRONY KLIENTA ---\n{user_pages_context}"
         
         client = openai.OpenAI(api_key=openai_api_key)
 
