@@ -271,7 +271,23 @@ Zwróć wyłącznie poprawny JSON w strukturze:
 "ryzyka_i_uwagi": [{"obszar": "", "ryzyko": "", "jak_ograniczyc_ryzyko": ""}]
 }"""
         step5_user_b = st.text_area("User Prompt (Grupowanie)", value=user_5b_def, height=250, key="step5_user_b")
-            
+    # Opcja wgrywania częściowych plików z Etapu 1
+    st.markdown("---")
+    st.markdown("### Opcjonalnie: Wznów po błędzie (Etap 1)")
+    st.info("Jeśli proces został przerwany, możesz wgrać uratowane pliki JSON. Aplikacja pominie już przeanalizowane frazy i dokończy resztę.")
+    recovered_files = st.file_uploader("Wgraj uratowane pliki 'temp_brand_results_backup.json'", type=['json'], accept_multiple_files=True, key="recovered_brand_json")
+    recovered_keywords = []
+    if recovered_files:
+        for f in recovered_files:
+            try:
+                data = json.load(f)
+                if isinstance(data, list):
+                    recovered_keywords.extend(data)
+            except Exception as e:
+                st.error(f"Błąd wczytywania {f.name}: {e}")
+        if recovered_keywords:
+            st.success(f"Pomyślnie odzyskano {len(recovered_keywords)} przetworzonych fraz ze wgranych plików.")
+
     if st.button("Rozpocznij Analizę Brandu AI", type="primary"):
         brand_data = []
         
@@ -333,23 +349,6 @@ Zwróć wyłącznie poprawny JSON w strukturze:
         full_context = f"--- PRODUKTY KLIENTA ---\n{products_context}\n\n--- WŁASNE STRONY KLIENTA ---\n{user_pages_context}"
         
         client = openai.OpenAI(api_key=openai_api_key)
-
-        # Opcja wgrywania częściowych plików z Etapu 1
-        st.markdown("---")
-        st.markdown("### Opcjonalnie: Wznów po błędzie (Etap 1)")
-        st.info("Jeśli proces został przerwany, możesz wgrać uratowane pliki JSON. Aplikacja pominie już przeanalizowane frazy i dokończy resztę.")
-        recovered_files = st.file_uploader("Wgraj uratowane pliki 'temp_brand_results_backup.json'", type=['json'], accept_multiple_files=True, key="recovered_brand_json")
-        recovered_keywords = []
-        if recovered_files:
-            for f in recovered_files:
-                try:
-                    data = json.load(f)
-                    if isinstance(data, list):
-                        recovered_keywords.extend(data)
-                except Exception as e:
-                    st.error(f"Błąd wczytywania {f.name}: {e}")
-            if recovered_keywords:
-                st.success(f"Pomyślnie odzyskano {len(recovered_keywords)} przetworzonych fraz ze wgranych plików.")
 
         # Etap 1: Analiza pojedynczych fraz (tylko jeśli brak ich w sesji)
         if "brand_analysis_results" not in st.session_state:
