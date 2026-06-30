@@ -68,7 +68,7 @@ def render(openai_api_key):
             with ca1:
                 step5_temp_a = st.slider("Temperatura", 0.0, 2.0, 1.0 if step5_model_a == "gpt-5.4-mini" else 0.7, 0.1, key="step5_temp_a")
             with ca2:
-                step5_tokens_a = st.number_input("Max Tokens", 100, 16000, 4000, key="step5_tokens_a")
+                step5_tokens_a = st.number_input("Max Tokens", 100, 16000, 16000, key="step5_tokens_a")
             params_5a = {"model": step5_model_a, "temperature": 1.0 if step5_model_a == "gpt-5.4-mini" else step5_temp_a, "max_tokens": step5_tokens_a}
         else:
             st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=1.0, reasoning_effort=medium.")
@@ -356,7 +356,7 @@ Zwróć wyłącznie poprawny JSON w strukturze:
             table_placeholder = st.empty()
             
             import time
-            batch_size = 15
+            batch_size = 10
             
             for i in range(0, len(unique_brand_data), batch_size):
                 batch = unique_brand_data[i:i+batch_size]

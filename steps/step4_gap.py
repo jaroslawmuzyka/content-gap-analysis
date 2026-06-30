@@ -68,7 +68,7 @@ def render(openai_api_key):
             with col1:
                 step4_temp = st.slider("Temperatura", 0.0, 2.0, 1.0 if step4_model == "gpt-5.4-mini" else 0.7, 0.1, key="step4_temp")
             with col2:
-                step4_tokens = st.number_input("Max Tokens", 100, 16000, 4000, key="step4_tokens")
+                step4_tokens = st.number_input("Max Tokens", 100, 16000, 16000, key="step4_tokens")
             params_4 = {"model": step4_model, "temperature": 1.0 if step4_model == "gpt-5.4-mini" else step4_temp, "max_tokens": step4_tokens}
         else:
             st.info("Zastosowano parametry rekomendowane: model=gpt-5.4-mini, temp=1.0, reasoning_effort=low.")
